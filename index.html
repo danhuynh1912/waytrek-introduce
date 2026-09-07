@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/icon-256.png" />
+    <meta property="og:image" content="/icon-512.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0D161E" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#F0F5F7" media="(prefers-color-scheme: light)" />
+    <title>WayTrek — Cung núi Việt Nam trong tay bạn</title>
+    <meta name="description" content="WayTrek là bạn đồng hành leo núi: bản đồ offline, địa hình 3D, ghi hành trình GPS và AI gọi tên cây cỏ bạn gặp trên đường." />
+    <meta property="og:title" content="WayTrek — Cung núi Việt Nam trong tay bạn" />
+    <meta property="og:description" content="Bản đồ offline, địa hình 3D, ghi hành trình GPS và AI nhận diện cây trên cung." />
+    <meta property="og:type" content="website" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Grape+Nuts&display=swap" rel="stylesheet" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('wt-theme');
+          if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
