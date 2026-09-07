@@ -6,7 +6,7 @@ export function Outro() {
     <section className="outro" id="tai-app">
       <div className="outro-grid">
         <div>
-          <h2>Lần leo tới, mang WayTrek theo.</h2>
+          <h2>Lần leo tới, hãy mang WayTrek theo</h2>
           <p>Bạn tải bản đồ trước ở nhà, lên núi ghi hành trình bằng GPS, chụp một tấm là AI gọi tên cây, và về tới nơi thì đỉnh đã nằm trong sơn phả của bạn.</p>
           <a className="store-badge" href={STORE_URL} target="_blank" rel="noopener">
             <Apple />
@@ -21,7 +21,7 @@ export function Outro() {
         </div>
       </div>
       <footer className="foot">
-        <span>© {new Date().getFullYear()} WayTrek. Làm ở Việt Nam, cho người leo núi Việt Nam.</span>
+        <span>© {new Date().getFullYear()} WayTrek. Dành cho leo núi Việt Nam.</span>
         <nav>
           <a href={PRIVACY_URL} target="_blank" rel="noopener">Quyền riêng tư</a>
           <a href={TERMS_URL} target="_blank" rel="noopener">Điều khoản</a>

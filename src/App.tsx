@@ -57,7 +57,7 @@ export default function App() {
             <span>WayTrek</span>
           </div>
 
-          <MarginNotes screen={screen} index={active} />
+          <MarginNotes screen={screen} />
           <Phone ref={screenRef} screens={SCREENS} active={active} reducedMotion={reduced} />
           <Annotations notes={screen.notes} screenRect={rect} seed={screen.id} reducedMotion={reduced} />
           <Rail screens={SCREENS} active={active} onGo={goTo} />

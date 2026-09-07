@@ -13,7 +13,7 @@ export type Note = {
   label: string
 }
 
-export type MarginNote = { slot: 'tl' | 'ml' | 'bl' | 'mr' | 'br'; head: string; body: string }
+export type MarginNote = { slot: 'tl' | 'ml' | 'mr' | 'br'; head: string; body: string }
 
 export type Screen = {
   id: string
@@ -45,7 +45,6 @@ export const SCREENS: Screen[] = [
     margins: [
       { slot: 'tl', head: 'Ứng dụng iOS', body: 'Leo núi / Việt Nam' },
       { slot: 'ml', head: '16 cung núi', body: 'Tây Bắc & Đông Bắc' },
-      { slot: 'bl', head: 'Thời tiết', body: 'Đúng chân núi, không phải thành phố' },
       { slot: 'mr', head: 'Ảnh bạn bè', body: 'Có toạ độ trên cung' },
       { slot: 'br', head: 'Miễn phí', body: 'Tải về là dùng' },
     ],
@@ -65,7 +64,6 @@ export const SCREENS: Screen[] = [
     margins: [
       { slot: 'tl', head: 'Fansipan', body: 'Sa Pa, Lào Cai' },
       { slot: 'ml', head: '3143 m', body: 'Nóc nhà Đông Dương' },
-      { slot: 'bl', head: '+1484 m', body: 'Tổng leo dốc' },
       { slot: 'mr', head: '8.9 km', body: 'Một chiều lên đỉnh' },
       { slot: 'br', head: 'Trung bình', body: 'Độ khó' },
     ],
@@ -85,7 +83,6 @@ export const SCREENS: Screen[] = [
     margins: [
       { slot: 'tl', head: 'Bản đồ offline', body: 'Tile + địa hình' },
       { slot: 'ml', head: 'GPX thật', body: 'Từng khúc cua' },
-      { slot: 'bl', head: 'Địa hình 3D', body: 'Bay quanh đỉnh trước khi leo' },
       { slot: 'mr', head: 'GPS nền', body: 'Khoá màn vẫn ghi' },
       { slot: 'br', head: 'Cảnh báo', body: 'Lệch tuyến là biết ngay' },
     ],
@@ -105,7 +102,6 @@ export const SCREENS: Screen[] = [
     margins: [
       { slot: 'tl', head: 'Sơn phả', body: 'Sổ đỉnh của riêng bạn' },
       { slot: 'ml', head: 'Á Thần', body: 'Từ 10 đỉnh trở lên' },
-      { slot: 'bl', head: 'Ghi danh', body: 'Đứng trên đỉnh là được ghi' },
       { slot: 'mr', head: 'Danh hiệu', body: 'Đổi theo mùa Sơn Tinh' },
       { slot: 'br', head: 'Bảng Vàng', body: 'Ai lên nhiều đỉnh nhất' },
     ],
