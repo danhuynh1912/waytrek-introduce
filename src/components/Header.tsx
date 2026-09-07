@@ -17,7 +17,7 @@ export function Header({ mode, onToggle }: { mode: ThemeMode; onToggle: () => vo
       <a className="brand" href="/" aria-label="WayTrek">
         <img className="brand-mark" src="/icon-256.png" alt="" width={30} height={30} />
         <span className="brand-name">WayTrek</span>
-        <span className="brand-sub">Cung núi Việt Nam</span>
+        <span className="brand-sub">Người bạn đồng hành cho trekkers Việt Nam</span>
       </a>
       <div className="header-right">
         <button className="icon-btn" onClick={onToggle} aria-label={mode === 'dark' ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'} title={mode === 'dark' ? 'Giao diện sáng' : 'Giao diện tối'}>
