@@ -2,9 +2,25 @@
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
+    <!--
+      Favicon cho Google Search: icon PHẢI vuông và cạnh là BỘI SỐ CỦA 48
+      (48/96/144/192…). Bản cũ là 64×64 nên Google bỏ qua và vẽ quả địa cầu
+      mặc định. Kèm thêm /favicon.ico thật: `vercel.json` rewrite mọi đường
+      dẫn về index.html, nên khi thiếu file đó thì đường dò dự phòng
+      /favicon.ico trả về HTML 200 — với crawler đó là một icon HỎNG, tệ hơn
+      là không có.
+    -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
     <link rel="apple-touch-icon" href="/icon-256.png" />
-    <meta property="og:image" content="/icon-512.png" />
+    <link rel="canonical" href="https://www.waytrek.site/" />
+    <!-- og:image phải là URL TUYỆT ĐỐI: Facebook/Zalo không tự ghép domain. -->
+    <meta property="og:image" content="https://www.waytrek.site/icon-512.png" />
+    <meta property="og:url" content="https://www.waytrek.site/" />
+    <meta property="og:site_name" content="WayTrek" />
+    <meta property="og:locale" content="vi_VN" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0D161E" />
     <title>WayTrek - Người bạn đồng hành cho trekkers Việt Nam</title>
