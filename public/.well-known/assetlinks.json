@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.trek.way_trek",
+      "sha256_cert_fingerprints": [
+        "THAY_BANG_SHA256_KHOA_UPLOAD",
+        "THAY_BANG_SHA256_KHOA_PLAY_APP_SIGNING"
+      ]
+    }
+  }
+]

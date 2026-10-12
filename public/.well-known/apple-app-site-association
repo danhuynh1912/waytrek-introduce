@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": ["S87D3AM8U5.com.trek.wayTrekApp"],
+        "appID": "S87D3AM8U5.com.trek.wayTrekApp",
+        "components": [
+          { "/": "/j/*", "comment": "Lời mời vào đoàn trek (WayTrek spec/32)" }
+        ],
+        "paths": ["/j/*"]
+      }
+    ]
+  }
+}

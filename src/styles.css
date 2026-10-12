@@ -378,3 +378,51 @@ img { max-width: 100%; display: block; }
   .scroll-hint i { animation: none; }
   *, *::before, *::after { transition-duration: 0.01s !important; animation-duration: 0.01s !important; }
 }
+
+/* ---------- Trang lời mời /j/<mã> (WayTrek spec/32) ---------- */
+.join {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 20px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  text-align: center;
+}
+.join-lead { font-size: 20px; font-weight: 700; margin: 0 0 12px; text-wrap: balance; }
+.join-code-label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.join-code {
+  margin: 0 0 20px;
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--teal-light);
+  font-variant-numeric: tabular-nums;
+  user-select: all;
+}
+.join-actions { display: flex; flex-direction: column; gap: 10px; width: min(320px, 100%); }
+.join-primary,
+.join-secondary {
+  display: block;
+  padding: 14px 18px;
+  border-radius: 14px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+.join-primary { background: var(--teal); color: var(--on-primary); border: 0; }
+.join-secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+.join-note { margin: 8px 0 0; font-size: 14px; color: var(--text-muted); }
