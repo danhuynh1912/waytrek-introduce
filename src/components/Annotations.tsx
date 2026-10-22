@@ -45,8 +45,17 @@ function ringPath(cx: number, cy: number, rx: number, ry: number, rng: Rng, arro
   return { d, edge }
 }
 
-type Side = 'left' | 'right' | 'center'
-type Built = { ring: string; arrow: string; head: string; labelX: number; labelY: number; side: Side; label: string; key: string; maxWidth: number }
+type Side = Note['side']
+type Built = {
+  ring: string; arrow: string; head: string; labelX: number; labelY: number; side: Side; label: string; key: string; maxWidth: number
+  /** Chữ căn GIỮA theo `labelY` (màn hẹp) thay vì dòng đầu nằm ở `labelY`. */
+  vCenter: boolean
+}
+
+/** Vỏ máy quanh màn hình: `inset` của `.screen` là 2,8% bề ngang máy (styles.css). */
+const BEZEL_RATIO = 0.028 / (1 - 2 * 0.028)
+/** Nút cạnh máy thò ra ngoài vỏ (`.phone::before/::after`, `.phone-btn-vol`). */
+const SIDE_BUTTON = 3
 
 function build(notes: Note[], rect: Rect, seedBase: string, compact: boolean): Built[] {
   return (compact ? notes.slice(0, 1) : notes).map((n, i) => {
@@ -58,23 +67,27 @@ function build(notes: Note[], rect: Rect, seedBase: string, compact: boolean): B
     const cx = tx + tw / 2, cy = ty + th / 2
     const rx = tw / 2 + inflate, ry = th / 2 + inflate
 
-    // Điểm neo của chữ: ngoài mép điện thoại (desktop) — hoặc, ở màn hẹp,
-    // NGAY TRONG khung màn hình phía còn nhiều chỗ, đúng như app làm.
+    // Điểm neo của chữ: luôn NGOÀI mép điện thoại, ở cả màn rộng lẫn màn hẹp.
     const gap = Math.max(44, rect.width * 0.16)
     // Chữ chỉ được chiếm khoảng giữa mép điện thoại và dải ghi chú lề (13vw + lề 3.2vw).
     const sideRoom = rect.stageWidth / 2 - rect.width / 2 - gap - rect.stageWidth * 0.165 - 24
     let side: Side = n.side
     let labelX: number, labelY: number, maxWidth: number
     if (compact) {
-      // Đúng lối app: chữ nằm phía còn nhiều chỗ, mũi tên ngắn đâm vào vòng.
-      const ringBottom = cy + ry, ringTop = cy - ry
-      const roomBelow = rect.top + rect.height - ringBottom, roomAbove = ringTop - rect.top
-      const below = roomBelow >= roomAbove
-      const lead = Math.min(72, Math.max(40, (below ? roomBelow : roomAbove) * 0.35))
-      labelY = below ? ringBottom + lead : ringTop - lead
-      side = 'center'
-      labelX = Math.min(rect.left + rect.width * 0.72, Math.max(rect.left + rect.width * 0.28, cx))
-      maxWidth = rect.width * 0.6
+      // Màn hẹp: chữ nằm NGOÀI máy, trong khe hai bên — cùng cách màn rộng làm,
+      // không đè lên ảnh app (người dùng 23/10). Chọn bên GẦN vòng hơn để mũi
+      // tên ngắn, ít cắt ngang nội dung app. Khe hẹp (~70px ở máy 375px) nên chữ
+      // xuống nhiều dòng và căn giữa theo tâm vòng.
+      side = cx < rect.left + rect.width / 2 ? 'left' : 'right'
+      const shell = rect.width * BEZEL_RATIO + SIDE_BUTTON
+      const edge = side === 'left' ? rect.left - shell : rect.left + rect.width + shell
+      const pad = 8
+      labelX = side === 'left' ? edge - pad : edge + pad
+      const room = side === 'left' ? labelX : rect.stageWidth - labelX
+      maxWidth = Math.max(48, Math.min(220, room - 10))
+      // Giữ cả khối chữ trong chiều cao của máy: ra ngoài là đụng tiêu đề phía
+      // trên hoặc chữ WayTrek khổng lồ phía dưới.
+      labelY = Math.min(rect.top + rect.height - 48, Math.max(rect.top + 48, cy + (n.dy ?? 0) * rect.height * 0.5))
     } else {
       labelX = side === 'right' ? rect.left + rect.width + gap : rect.left - gap
       labelY = cy + (n.dy ?? 0) * rect.height + rng.range(-6, 6)
@@ -86,8 +99,10 @@ function build(notes: Note[], rect: Rect, seedBase: string, compact: boolean): B
     // Mũi tên: từ cạnh chữ, cong nhẹ, chạm mép vòng cách 6px.
     const [ex, ey] = edge(arrowAngle)
     const tipX = ex + Math.cos(arrowAngle) * 7, tipY = ey + Math.sin(arrowAngle) * 7
-    const sx0 = side === 'right' ? labelX - 10 : side === 'left' ? labelX + 10 : labelX
-    const sy0 = side === 'center' ? (labelY > cy ? labelY - 14 : labelY + 14) : labelY + 8
+    // Màn hẹp: chữ đã sát máy, mũi tên bắt đầu ngay cạnh chữ, ở giữa khối chữ.
+    const lead = compact ? 4 : 10
+    const sx0 = side === 'right' ? labelX - lead : labelX + lead
+    const sy0 = compact ? labelY : labelY + 8
     const mx = (sx0 + tipX) / 2, my = (sy0 + tipY) / 2
     const nx = -(tipY - sy0), ny = tipX - sx0
     const nl = Math.hypot(nx, ny) || 1
@@ -100,7 +115,7 @@ function build(notes: Note[], rect: Rect, seedBase: string, compact: boolean): B
     const h1x = tipX - Math.cos(ang - spread) * L, h1y = tipY - Math.sin(ang - spread) * L
     const h2x = tipX - Math.cos(ang + spread) * L, h2y = tipY - Math.sin(ang + spread) * L
     const head = `M${h1x.toFixed(1)},${h1y.toFixed(1)}L${tipX.toFixed(1)},${tipY.toFixed(1)}L${h2x.toFixed(1)},${h2y.toFixed(1)}`
-    return { ring: d, arrow, head, labelX, labelY, side, label: n.label, key: `${seedBase}-${i}`, maxWidth }
+    return { ring: d, arrow, head, labelX, labelY, side, label: n.label, key: `${seedBase}-${i}`, maxWidth, vCenter: compact }
   })
 }
 
@@ -140,11 +155,10 @@ export function Annotations({ notes, screenRect, seed, reducedMotion }: { notes:
                 style={{
                   left: b.side === 'left' ? undefined : b.labelX,
                   right: b.side === 'left' ? `calc(100% - ${b.labelX}px)` : undefined,
-                  top: b.side === 'center' ? (b.labelY > 0 ? b.labelY - 14 : b.labelY) : b.labelY - 16,
-                  textAlign: b.side === 'left' ? 'right' : b.side === 'center' ? 'center' : 'left',
+                  top: b.vCenter ? b.labelY : b.labelY - 16,
+                  textAlign: b.side === 'left' ? 'right' : 'left',
                   maxWidth: b.maxWidth,
-                  width: b.side === 'center' ? b.maxWidth : undefined,
-                  transform: `${b.side === 'center' ? 'translateX(-50%) ' : ''}rotate(${(hashString(b.key) % 5) - 2}deg)`,
+                  transform: `${b.vCenter ? 'translateY(-50%) ' : ''}rotate(${(hashString(b.key) % 5) - 2}deg)`,
                 }}
                 initial={{ clipPath: b.side === 'left' ? 'inset(-20% 0 -20% 100%)' : 'inset(-20% 100% -20% 0)' }}
                 animate={{ clipPath: 'inset(-20% 0% -20% 0%)' }}

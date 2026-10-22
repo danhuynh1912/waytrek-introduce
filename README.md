@@ -7,7 +7,7 @@ Landing page cho app WayTrek, dựng song song với `admin_web/` (cùng Vite + 
 
 ## Cấu trúc
 
-- `src/data/screens.ts` — bốn màn thật của app (ảnh trong `public/screens/`), câu chữ, và toạ độ
+- `src/data/screens.ts` — sáu màn thật của app (ảnh trong `public/screens/`), câu chữ, và toạ độ
   chú thích viết tay (chuẩn hoá 0..1 theo khung ảnh, cùng quy ước `bbox` của `SpeciesAnnotation` trong app).
 - `src/data/palettes.ts` — tone biển mây cho từng màn × theme, màu lấy từ hệ token của app.
 - `src/components/CloudSea.tsx` — biển mây WebGL; đổi màn thì tween tone + trôi sang vùng mây khác.
@@ -19,3 +19,11 @@ Landing page cho app WayTrek, dựng song song với `admin_web/` (cùng Vite + 
 
 Chụp từ simulator bằng `xcrun simctl io booted screenshot`, xuất JPEG rộng ~830px vào `public/screens/`,
 rồi chỉnh lại `box` của các chú thích trong `screens.ts` nếu bố cục màn đó đổi.
+
+- **Chụp từ build của nhánh `master`** (app thật sắp phát hành). Simulator trên máy dev hay đang cài bản
+  build từ nhánh thử nghiệm giao diện (`experiment/ui-lab`) — kiểm `Runner.app` đang cài là của checkout
+  nào trước khi chụp.
+- **Chỉ dùng dữ liệu catalog hoặc của chính tài khoản chủ dự án.** Tên, ảnh, bài viết của người dùng khác
+  (bài nổi bật, Bảng Vàng, dãy avatar người ghi danh) không được lên trang giới thiệu.
+- Thanh trạng thái sạch: `xcrun simctl status_bar booted override --time "9:41" --batteryState discharging
+  --batteryLevel 100 --cellularBars 4 --wifiBars 3`, chụp xong thì `status_bar booted clear`.

@@ -223,6 +223,9 @@ img { max-width: 100%; display: block; }
   pointer-events: auto;
 }
 @media (max-width: 900px) { .phone { --ph: min(58vh, 560px); margin-top: 9vh; } }
+/* Điện thoại dọc: nhỏ máy lại một chút để khe hai bên đủ chỗ cho chữ chú
+   thích (chữ nằm NGOÀI máy — xem `Annotations`). */
+@media (max-width: 600px) { .phone { --ph: min(54vh, 520px); } }
 /* nút cạnh máy */
 .phone::before, .phone::after {
   content: ''; position: absolute; background: var(--phone-shell-edge);
@@ -263,7 +266,9 @@ img { max-width: 100%; display: block; }
   text-shadow: 0 0 2px var(--ink-shadow), 0 1px 3px var(--ink-shadow), 0 0 16px var(--ink-shadow);
   white-space: normal; transform-origin: left center;
 }
-@media (max-width: 900px) { .note-label { font-size: 19px; line-height: 1.05; } }
+/* Màn hẹp: chữ nằm trong khe ~70px hai bên máy (xem `Annotations`), nên nhỏ
+   lại để mỗi dòng còn đủ một cụm từ. */
+@media (max-width: 900px) { .note-label { font-size: 16px; line-height: 1.08; } }
 
 /* ---------- Ghi chú rải xung quanh (như ảnh mẫu) ---------- */
 .margin-notes { position: absolute; inset: 0; z-index: 8; pointer-events: none; }
