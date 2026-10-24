@@ -11,6 +11,16 @@ Trang tĩnh giới thiệu app WayTrek: Vite + React + TypeScript, deploy Vercel
 - `/j/<mã>` là trang lời mời vào đoàn (`src/components/JoinPage.tsx`,
   `src/lib/invite.ts`); hình dạng link do app WayTrek quyết (`WayTrekWeb`,
   `InviteLink` trong `way_trek/lib`), trang này phải khớp.
+- `/plan` là **ứng dụng lên kế hoạch chuyến trek** (`src/plan/`, thiết kế:
+  `spec/43-trip-planner.md` của repo WayTrek) — phần DUY NHẤT của trang có
+  backend: Supabase (khoá anon công khai) + Edge Function `trip-plan`. Chunk tải
+  lười: `/` và `/j/<mã>` không kéo `maplibre-gl` / `supabase-js` theo.
+  · **Luật nằm hết ở máy chủ** (chia ngày, chọn lán, vùng nên nghỉ, mốc bình
+    minh, gợi ý thứ tự leo). Web chỉ vẽ `doc` + `result` và gọi `trip-plan` —
+    đừng tính lại giờ / cảnh báo ở đây, hai chỗ tính là hai chỗ lệch.
+  · `src/plan/core/` thuần TypeScript (không React, không mạng), test bằng
+    `npm run test:plan` (deno). Kiểu dữ liệu `core/types.ts` chép từ
+    `supabase/functions/trip-plan/engine/types.ts` — engine là chủ, sửa ở đó trước.
 
 ## Engineering Rules
 
@@ -45,6 +55,8 @@ exception.
    satisfies current requirements. Do not add speculative features, layers,
    or abstractions.
    - Ở repo này: trang tĩnh, không backend, không state manager — đừng thêm.
+     Ngoại lệ duy nhất là `/plan` (xem đầu file), và nó cũng không có state
+     manager: trạng thái soạn nằm trong hook `use-plan-editor`.
 9. **Testability:** Make business-critical behavior testable. Add or update
    focused tests for changed behavior and relevant edge cases.
 10. **Fail clearly:** Validate untrusted inputs and important preconditions at
@@ -56,8 +68,8 @@ exception.
     build commands when available. Report what ran, what passed, and what
     could not be run.
     - Ở repo này: `npm run lint` (oxlint) và `npm run build` (`tsc -b` +
-      `vite build`). Đổi giao diện thì chạy `npm run dev` và nhìn cả hai theme
-      ở bề ngang điện thoại.
+      `vite build`); đụng `src/plan/` thì thêm `npm run test:plan`. Đổi giao
+      diện thì chạy `npm run dev` và nhìn cả hai theme ở bề ngang điện thoại.
 
 ### Working requirements
 

@@ -15,6 +15,17 @@ Landing page cho app WayTrek, dựng song song với `admin_web/` (cùng Vite + 
 - `src/hooks/useScrollStage.ts` — mỗi cử chỉ cuộn/vuốt = đúng một màn, bất kể mạnh nhẹ.
 - `src/styles.css` — token màu chép 1:1 từ `app_theme_colors.dart`, hai theme, mặc định theo hệ thống.
 
+## Lên kế hoạch chuyến trek (`/plan`)
+
+Thiết kế: `spec/43-trip-planner.md` (repo WayTrek). Mọi luật tính ở Edge Function `trip-plan`; web chỉ vẽ.
+
+- `src/plan/core/` — thuần TypeScript: kiểu dữ liệu (chép từ engine), sửa `doc`, câu chữ cảnh báo, dòng thời
+  gian, danh sách chuẩn bị. Test: `npm run test:plan` (cần `deno`).
+- `src/plan/data/` — Supabase (khoá anon, `config.ts`), gọi `trip-plan` (`compute`, `suggest`, `save`), bản nháp.
+- `src/plan/ui/` — bản đồ MapLibre, dòng thời gian, thẻ gợi ý thứ tự leo, thanh số liệu.
+- Đăng nhập trên web cần `https://www.waytrek.site/**` (và `http://localhost:5174/**` khi thử) trong
+  Supabase → Auth → URL Configuration → Redirect URLs.
+
 ## Cập nhật ảnh màn hình
 
 Chụp từ simulator bằng `xcrun simctl io booted screenshot`, xuất JPEG rộng ~830px vào `public/screens/`,

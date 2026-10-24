@@ -7,6 +7,10 @@
     {
       "source": "/j/(.*)",
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
+    },
+    {
+      "source": "/plan/(.+)",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
     }
   ],
   "rewrites": [{ "source": "/((?!\\.well-known/).*)", "destination": "/index.html" }]

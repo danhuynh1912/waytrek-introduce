@@ -9,6 +9,7 @@
   --teal-light: #2F677A;
   --teal-pale: #1E4654;
   --gilt: #9A6B18;
+  --red: #E04545;
   --text: rgba(18, 34, 43, 0.9);
   --text-2: rgba(18, 34, 43, 0.8);
   --text-muted: rgba(18, 34, 43, 0.6);
@@ -54,6 +55,7 @@
     --teal-light: #7FBDD0;
     --teal-pale: #C4E8F4;
     --gilt: #F5D77A;
+    --red: #FF5757;
     --text: rgba(255, 255, 255, 0.9);
     --text-2: rgba(255, 255, 255, 0.8);
     --text-muted: rgba(255, 255, 255, 0.6);
@@ -87,6 +89,7 @@
   --teal-light: #7FBDD0;
   --teal-pale: #C4E8F4;
   --gilt: #F5D77A;
+  --red: #FF5757;
   --text: rgba(255, 255, 255, 0.9);
   --text-2: rgba(255, 255, 255, 0.8);
   --text-muted: rgba(255, 255, 255, 0.6);
