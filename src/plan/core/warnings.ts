@@ -63,8 +63,20 @@ export function dayNote(w: DayWarning, nameOf: (id: string) => string | undefine
 }
 
 /** Mức "đường đã biết" của một chặng đi bộ (spec/43 §6.1). */
+/** Chặng xe: đoạn nối không lối ngắn hơn mức này (ra đường đón xe, xuống xe vào điểm) không cảnh báo. */
+export const VEHICLE_JOIN_OK_M = 300
+
+/**
+ * Chặng đi bộ: đoạn không lối ngắn hơn mức này không cảnh báo — bước từ điểm
+ * tự chấm (nhà, khách sạn giữa phố) ra con đường gần nhất, cỡ sai số GPS.
+ */
+export const WALK_JOIN_OK_M = 100
+
 export function knownNote(leg: ResultLeg): Note | null {
-  if (leg.transport === 'vehicle' && !leg.flags.includes('mappedPath') && leg.unknownM === 0) return null
+  if (leg.transport === 'vehicle' && !leg.flags.includes('mappedPath') && leg.unknownM < VEHICLE_JOIN_OK_M) return null
+  if (leg.transport === 'walk' && !leg.flags.includes('mappedPath') && leg.unknownM > 0 && leg.unknownM < WALK_JOIN_OK_M) {
+    return null
+  }
   if (leg.knownPct >= 90) return { level: 'info', text: 'Có lối đã biết' }
   // Lối mòn OSM: có lối trên bản đồ nhưng chưa ai đi trong dữ liệu WayTrek.
   if (leg.flags.includes('unknownPath')) {

@@ -1,7 +1,7 @@
 // Mọi thao tác sửa một kế hoạch. Thuần: nhận doc cũ, trả doc mới, không đụng
 // tới bản cũ (hoàn tác giữ nguyên các bản trước).
 
-import type { ArriveAt, PlanDoc, ResultStop, Transport, Waypoint, WaypointKind } from './types.ts'
+import type { ArriveAt, PlanDoc, RestChoice, ResultStop, Transport, Waypoint, WaypointKind } from './types.ts'
 
 /** Trần và khung toạ độ của máy chủ (`engine/validate.ts`) — chép để chặn
  *  trước khi gửi, thay vì để cả kế hoạch bị trả lỗi 400. */
@@ -165,6 +165,21 @@ export const CAMP_NAME = 'Chỗ cắm trại'
  * đúng điểm nghỉ của vùng. `afterWaypointId` là điểm đứng ngay trước nó — tính
  * theo kế hoạch ĐÃ SINH ra kết quả, vì doc có thể đã đổi từ lúc đó.
  */
+/**
+ * Chèn một điểm nghỉ vào giữa chặng tới điểm thứ `i`: chặng đó bị chia đôi.
+ * Nửa đầu mang cách đi của chặng cũ (từ Hà Nội thì vẫn đi xe — gắn cứng "đi
+ * bộ" là bắt đi bộ cả trăm km); nửa sau chặng cũ ép đi xe thì trả về "tự
+ * chọn", vì từ lán đi tiếp gần như luôn là đi bộ.
+ */
+function insertRestPoint(doc: PlanDoc, i: number, wp: Waypoint): EditResult {
+  const next = doc.waypoints[i]
+  const placed = { ...wp, transport: next?.transport ?? 'auto' }
+  const base = next?.transport === 'vehicle'
+    ? withWaypoints(doc, doc.waypoints.map((x, k) => (k === i ? { ...x, transport: 'auto' as Transport } : x)))
+    : doc
+  return insertAt(base, i, placed)
+}
+
 export function keepAutoStop(
   doc: PlanDoc,
   stop: ResultStop,
@@ -174,12 +189,12 @@ export function keepAutoStop(
   const i = doc.waypoints.findIndex((w) => w.id === afterWaypointId)
   if (i < 0 || (!stop.poiId && !stop.zone)) return { ok: false, reason: 'missing' }
   const at = { lat: stop.latE6 / 1e6, lon: stop.lonE6 / 1e6, rest: true }
-  return insertAt(
+  return insertRestPoint(
     doc,
     i + 1,
     stop.poiId
-      ? makeWaypoint({ id: newId, kind: 'poi', ref: stop.poiId, name: stop.name, transport: 'walk', ...at })
-      : makeWaypoint({ id: newId, kind: 'custom', name: CAMP_NAME, transport: 'walk', ...at }),
+      ? makeWaypoint({ id: newId, kind: 'poi', ref: stop.poiId, name: stop.name, ...at })
+      : makeWaypoint({ id: newId, kind: 'custom', name: CAMP_NAME, ...at }),
   )
 }
 
@@ -241,6 +256,71 @@ export function endsAtStart(doc: PlanDoc): boolean {
 
 /** Giờ sớm nhất mặc định (04:30) — chép từ DEFAULTS.earliestDepartMin của engine. */
 export const DEFAULT_EARLIEST_DEPART_MIN = 4 * 60 + 30
+/** Giờ xe đón mặc định khi bật đi tối hôm trước — chép từ DEFAULTS.nightTransferMin của engine. */
+export const DEFAULT_NIGHT_TRANSFER_MIN = 19 * 60 + 30
+/** Chỉ mời "đi tối hôm trước" khi chặng xe đầu dài hơn mức này (chủ sản phẩm 24/10). */
+export const NIGHT_TRANSFER_MIN_M = 100_000
+
+/**
+ * Có hiện ô "Đi tối hôm trước" ở chặng xe đầu không: xe đi xa (> 100 km), hoặc
+ * đang bật sẵn (để còn tắt được dù đường đã ngắn lại).
+ */
+export function nightTransferOffered(vehicleM: number | null, current: number | null): boolean {
+  return current != null || (vehicleM != null && vehicleM > NIGHT_TRANSFER_MIN_M)
+}
+/** Nghỉ trưa mặc định — chép từ DEFAULTS.lunchMin của engine. */
+export const DEFAULT_LUNCH_MIN = 30
+/** Thời gian ở trên đỉnh mặc định — chép từ DEFAULTS.summitMin của engine. */
+export const DEFAULT_SUMMIT_MIN = 30
+
+/**
+ * Có cho đánh dấu "Nghỉ đêm ở đây" không: điểm giữa kế hoạch, và KHÔNG phải đỉnh
+ * — không ai ngủ trên đỉnh núi (chủ sản phẩm 24/10). Đỉnh đã lỡ đánh dấu từ
+ * trước thì vẫn cho bỏ đánh dấu.
+ */
+export function restToggleAllowed(wp: Waypoint, index: number, count: number): boolean {
+  const middle = index > 0 && index < count - 1
+  // Lán (POI): chỗ ngủ do engine chọn, đổi lán bằng ô "Ngủ ở" (restChoices) —
+  // ô tick ở đây vô nghĩa (chủ sản phẩm 24/10). Lỡ đánh dấu từ trước thì vẫn bỏ được.
+  // Đỉnh từng được đánh dấu nghỉ (dữ liệu cũ) thì vẫn bỏ được.
+  return middle && (wp.kind === 'custom' || wp.kind === 'route' || (wp.kind === 'peak' && wp.rest))
+}
+
+/**
+ * Đổi chỗ ngủ của một đêm sang lán `choice`: bỏ chỗ ngủ hiện tại (điểm của
+ * người dùng thì bỏ đánh dấu nghỉ; lán engine tự chèn thì không chèn lại nữa),
+ * rồi ép ngủ ở lán mới — đánh dấu nghỉ nếu lán đã là một điểm, không thì chèn
+ * lán đó thành điểm nghỉ đúng chỗ trên lộ trình.
+ */
+export function chooseRest(doc: PlanDoc, current: ResultStop, choice: RestChoice, newId: string): EditResult {
+  if (choice.current) return { ok: true, doc }
+  let next = doc
+  if (current.waypointIndex >= 0) {
+    const w = next.waypoints[current.waypointIndex]
+    if (w?.rest) next = withWaypoints(next, next.waypoints.map((x, k) => (k === current.waypointIndex ? { ...x, rest: false } : x)))
+  } else if (current.poiId) {
+    next = dismissAutoStop(next, current.poiId)
+  }
+  if (choice.waypointIndex >= 0 && next.waypoints[choice.waypointIndex]) {
+    return {
+      ok: true,
+      doc: withWaypoints(next, next.waypoints.map((x, k) => (k === choice.waypointIndex ? { ...x, rest: true } : x))),
+    }
+  }
+  return insertRestPoint(
+    next,
+    choice.afterWaypointIndex + 1,
+    makeWaypoint({
+      id: newId,
+      kind: 'poi',
+      ref: choice.poiId,
+      name: choice.name,
+      lat: choice.latE6 / 1e6,
+      lon: choice.lonE6 / 1e6,
+      rest: true,
+    }),
+  )
+}
 
 export interface SettingsPatch {
   title?: string
@@ -248,6 +328,10 @@ export interface SettingsPatch {
   departMin?: number
   autoShift?: boolean
   earliestDepartMin?: number
+  /** Giờ xe đón tối hôm trước; null = tắt. */
+  nightTransferMin?: number | null
+  lunchMin?: number
+  summitMin?: number
   pace?: number
   restMinPerHour?: number
   sunsetMarginMin?: number
@@ -276,6 +360,21 @@ export function patchSettings(doc: PlanDoc, p: SettingsPatch): PlanDoc {
     next.departMin = clamp(Math.round(p.departMin), 0, 24 * 60 - 1)
   }
   if (p.autoShift !== undefined) next.autoShift = p.autoShift
+  // Chỉ ghi khi khác mặc định — cùng luật với máy chủ, giữ băm doc cũ.
+  if (p.lunchMin !== undefined && Number.isFinite(p.lunchMin)) {
+    const v = clamp(Math.round(p.lunchMin), 0, 180)
+    if (v === DEFAULT_LUNCH_MIN) delete next.lunchMin
+    else next.lunchMin = v
+  }
+  if (p.summitMin !== undefined && Number.isFinite(p.summitMin)) {
+    const v = clamp(Math.round(p.summitMin), 0, 180)
+    if (v === DEFAULT_SUMMIT_MIN) delete next.summitMin
+    else next.summitMin = v
+  }
+  if (p.nightTransferMin === null) delete next.nightTransferMin
+  else if (p.nightTransferMin !== undefined && Number.isFinite(p.nightTransferMin)) {
+    next.nightTransferMin = clamp(Math.round(p.nightTransferMin), 0, 24 * 60 - 1)
+  }
   // Chỉ ghi khi khác mặc định — cùng luật với máy chủ (validate.ts), giữ băm.
   if (p.earliestDepartMin !== undefined && Number.isFinite(p.earliestDepartMin)) {
     const v = clamp(Math.round(p.earliestDepartMin), 0, 12 * 60)

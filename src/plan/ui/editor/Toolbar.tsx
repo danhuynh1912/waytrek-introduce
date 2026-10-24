@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { DEFAULT_EARLIEST_DEPART_MIN, PACE_DEFAULT, PACE_MAX, PACE_MIN, PACE_SLOW_GROUP } from '../../core/doc'
+import { DEFAULT_EARLIEST_DEPART_MIN, DEFAULT_LUNCH_MIN, DEFAULT_SUMMIT_MIN, PACE_DEFAULT, PACE_MAX, PACE_MIN, PACE_SLOW_GROUP } from '../../core/doc'
 import type { SettingsPatch } from '../../core/doc'
 import { clock, parseClock, pace as fmtPace } from '../../core/format'
 import type { PlanDoc } from '../../core/types'
@@ -191,6 +191,22 @@ function Settings({ doc, onChange }: { doc: PlanDoc; onChange: Props['onSettings
         max={30}
         value={doc.restMinPerHour}
         onCommit={(v) => onChange({ restMinPerHour: v })}
+      />
+      <NumberField
+        label="Nghỉ trưa mỗi ngày"
+        unit="phút"
+        min={0}
+        max={180}
+        value={doc.lunchMin ?? DEFAULT_LUNCH_MIN}
+        onCommit={(v) => onChange({ lunchMin: v })}
+      />
+      <NumberField
+        label="Thời gian ở trên đỉnh"
+        unit="phút"
+        min={0}
+        max={180}
+        value={doc.summitMin ?? DEFAULT_SUMMIT_MIN}
+        onCommit={(v) => onChange({ summitMin: v })}
       />
       <NumberField
         label="Tới nơi trước hoàng hôn ít nhất"

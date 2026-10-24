@@ -227,6 +227,9 @@
 .pl-hit-name { color: var(--text); font-weight: 600; font-size: 13.5px; }
 
 .pl-search-dialog { width: min(520px, calc(100vw - 32px)); padding: 12px; }
+/* Ô nhập (nút × trong ô = xoá chữ) + nút đóng hộp đứng riêng bên phải */
+.pl-search-top { display: flex; align-items: center; gap: 8px; }
+.pl-search-top .pl-search { flex: 1; min-width: 0; }
 
 /* Trong hộp chọn đỉnh: danh sách luôn hiện, cuộn chung một vùng. */
 .pl-search-dialog .pl-search-hits {
@@ -291,17 +294,54 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
 /* ---------- Dòng thời gian ---------- */
 .pl-empty-plan { padding: 18px 16px; color: var(--text-2); }
 .pl-empty-plan p { margin: 0 0 8px; }
-.pl-timeline :where(.pl-eta, .pl-day-time, .pl-leg-stats, .pl-day-sub) { transition: opacity 0.25s var(--ease-inout); }
-.pl-timeline.is-stale :where(.pl-eta, .pl-day-time, .pl-leg-stats, .pl-day-sub) { opacity: 0.5; }
+.pl-timeline :where(.pl-eta, .pl-leg-stats, .pl-day-sub) { transition: opacity 0.25s var(--ease-inout); }
+.pl-timeline.is-stale :where(.pl-eta, .pl-leg-stats, .pl-day-sub) { opacity: 0.5; }
 
 .pl-day { padding: 18px 16px 6px; border-top: 1px solid var(--border); }
 .pl-timeline > div:first-child .pl-day { border-top: 0; }
-.pl-day-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.pl-day-head {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  /* Dải nền riêng cho tiêu đề ngày — dễ phân biệt các ngày khi cuộn. */
+  margin: -18px -16px 8px; padding: 14px 16px 12px; background: var(--overlay-5);
+}
 .pl-day-title { font-size: 20px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; }
-.pl-day-time { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 17px; }
 .pl-day-sub { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
 .pl-notes { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 5px; }
 .pl-day-notes { margin-top: 8px; }
+.pl-night { margin-top: 8px; display: grid; gap: 6px; }
+/* Nhãn "Tới …:" + nút đi bộ / đi xe hiện và ẩn CÙNG nhau (rê chuột, hoặc đoạn đang đi xe). */
+.pl-leg-mode {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 6px; font-size: 12.5px;
+  opacity: 0; transition: opacity 0.2s var(--ease-inout);
+}
+.pl-leg-mode .pl-seg { margin-top: 0; opacity: 1; }
+.pl-leg:hover .pl-leg-mode, .pl-leg:focus-within .pl-leg-mode, .pl-leg-mode:has(.pl-seg.is-vehicle) { opacity: 1; }
+@media (hover: none) { .pl-leg-mode { opacity: 1; } }
+.pl-leg-info {
+  display: inline-flex; vertical-align: -3px; margin-left: 6px; padding: 0; border: 0; background: none;
+  cursor: pointer; border-radius: 50%; transition: opacity 0.2s var(--ease-inout);
+}
+.pl-leg-info:hover { opacity: 0.75; }
+/* Tooltip rộng bằng khung của đoạn, ngay dưới dòng có nút "i" — nút có thể rơi
+ * xuống đầu dòng sau, neo theo nút thì tràn ra khỏi panel và bị cắt. */
+.pl-leg-body { position: relative; }
+.pl-leg-info-wrap { display: inline; }
+.pl-leg-tip {
+  position: absolute; z-index: 20; left: 0; right: 0; margin-top: 22px; padding: 8px 12px 10px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 12px 28px -14px rgba(0, 0, 0, 0.5);
+  opacity: 0; transform: translateY(-4px); visibility: hidden; pointer-events: none;
+  transition: opacity 0.18s var(--ease-inout), transform 0.18s var(--ease-inout), visibility 0s linear 0.18s;
+}
+.pl-leg-tip .pl-notes { margin-top: 0; }
+@media (hover: hover) {
+  .pl-leg-info-wrap:hover .pl-leg-tip {
+    opacity: 1; transform: none; visibility: visible;
+    transition: opacity 0.18s var(--ease-inout), transform 0.18s var(--ease-inout), visibility 0s;
+  }
+}
+.pl-night-time { display: flex; align-items: center; gap: 8px; padding-left: 23px; font-size: 13px; color: var(--text-2); }
+.pl-night-time input { font: inherit; font-variant-numeric: tabular-nums; }
 .pl-day-notes .pl-notes { margin-top: 6px; }
 .pl-day-notes-toggle {
   display: inline-flex; align-items: center; gap: 7px; padding: 0; border: 0; background: none;
@@ -316,8 +356,9 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
 .pl-note-info { color: var(--text-muted); }
 
 .pl-stop {
+  position: relative;
   display: grid;
-  grid-template-columns: 28px 1fr auto;
+  grid-template-columns: 54px 1fr;
   gap: 10px;
   padding: 8px 10px 8px 16px;
   align-items: start;
@@ -325,12 +366,14 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
 }
 .pl-stop:hover { background: var(--overlay-5); }
 .pl-dot {
-  width: 26px;
-  height: 26px;
+  /* Gấp đôi bản cũ (26 px) — chủ sản phẩm 24/10. Cột bên trái của điểm và của
+   * đoạn (54 px) phải đi cùng con số này để đường nối nằm giữa chấm. */
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 12px;
+  font-size: 20px;
   font-weight: 700;
   background: var(--text);
   color: var(--bg);
@@ -342,9 +385,14 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
 .pl-dot.is-auto { background: transparent; color: var(--gilt); border: 1.5px dashed var(--gilt); }
 .pl-stop.is-auto .pl-dot { box-shadow: none; }
 .pl-stop-body { min-width: 0; }
-.pl-stop-line { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+/* Khối chữ cao ít nhất bằng chấm (52 px) và căn giữa theo chiều dọc: tên +
+ * dòng phụ đứng sát nhau, cả cụm nằm ngang tâm chấm. Khối dài hơn (ô tick,
+ * hẹn giờ) thì tự bắt đầu từ trên xuống. */
+.pl-stop-body { min-height: 52px; display: flex; flex-direction: column; justify-content: center; }
+.pl-stop-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .pl-name {
-  flex: 1;
+  /* Ôm vừa chữ (giờ đã tự dạt phải bằng margin-left: auto) — nút danh sách lán đứng ngay sau tên. */
+  flex: 0 1 auto;
   min-width: 0;
   font-weight: 600;
   text-align: left;
@@ -354,19 +402,27 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
   white-space: nowrap;
 }
 .pl-name:not(.static):hover { text-decoration: underline dotted; text-underline-offset: 3px; }
-.pl-name.static { flex: 0 1 auto; }
 .pl-app .pl-name-input { flex: 1; height: 26px; padding: 0 6px; font-weight: 600; }
 .pl-eta { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 600; }
 .pl-stop-sub { color: var(--text-muted); font-size: 12px; margin-top: 1px; display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
 .pl-stop-sub b { color: var(--text-2); }
 .pl-late { color: var(--red); }
 .pl-stop .pl-check { margin-top: 6px; font-size: 12.5px; }
-.pl-stop-tools { display: flex; opacity: 0; transition: opacity 0.2s var(--ease-inout); }
-.pl-stop:hover .pl-stop-tools, .pl-stop:focus-within .pl-stop-tools { opacity: 1; }
+/* Nút sửa điểm nổi như tooltip trên góc phải khi rê chuột — không chiếm chỗ
+ * trong hàng, nên tên và giờ không bao giờ bị đẩy (chủ sản phẩm 24/10). */
+.pl-stop-tools {
+  position: absolute; bottom: calc(100% - 8px); right: 10px; z-index: 3;
+  display: flex; padding: 2px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 12px 28px -14px rgba(0, 0, 0, 0.5);
+  opacity: 0; transform: translateY(4px); pointer-events: none;
+  transition: opacity 0.2s var(--ease-inout), transform 0.2s var(--ease-inout);
+}
+.pl-stop:hover .pl-stop-tools, .pl-stop:focus-within .pl-stop-tools { opacity: 1; transform: none; pointer-events: auto; }
 .pl-tag { font-size: 11px; font-weight: 600; color: var(--gilt); border: 1px solid currentColor; border-radius: 4px; padding: 0 5px; line-height: 16px; }
 .pl-auto-actions { display: flex; gap: 6px; margin-top: 7px; }
 
-.pl-leg { display: grid; grid-template-columns: 28px 1fr; gap: 10px; padding: 0 16px; }
+.pl-leg { display: grid; grid-template-columns: 54px 1fr; gap: 10px; padding: 0 16px; }
 .pl-leg-line { justify-self: center; width: 0; border-left: 2px solid var(--teal); margin: -4px 0; transition: border-color 0.22s var(--ease-inout); }
 .pl-leg.is-unknown .pl-leg-line { border-left-style: dashed; border-color: var(--gilt); }
 .pl-leg.is-vehicle .pl-leg-line { border-left-style: dashed; border-color: #E8821E; }
@@ -381,6 +437,8 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
 .pl-seg-auto { display: inline-flex; align-items: center; padding: 2px 8px; border-left: 1px solid var(--border); font-size: 11px; color: var(--text-muted); }
 @media (hover: none) {
   .pl-stop-tools, .pl-seg { opacity: 1; }
+  .pl-stop { grid-template-columns: 54px 1fr auto; }
+  .pl-stop-tools { position: static; transform: none; pointer-events: auto; padding: 0; background: none; border: 0; box-shadow: none; }
 }
 .pl-return { margin: 12px 16px 0; }
 
@@ -399,8 +457,120 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
 .pl-arrive select.is-on { color: var(--teal); border-color: var(--teal); }
 .pl-app .pl-arrive input[type='time'] { height: 26px; padding: 0 6px; font-size: 12.5px; }
 
+/* Chọn lán ngủ (restChoices): nút danh sách cạnh tên, bấm mở tooltip */
+.pl-stop-body { position: relative; }
+.pl-rest-pick { display: inline-flex; flex: none; }
+.pl-rest-btn {
+  display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0;
+  color: var(--text-muted); background: none; border: 1px solid transparent; border-radius: 6px; cursor: pointer;
+  transition: color 0.2s var(--ease-inout), border-color 0.2s var(--ease-inout);
+}
+.pl-rest-btn:hover, .pl-rest-btn.is-on { color: var(--teal); border-color: var(--border); }
+.pl-rest-tip {
+  position: absolute; z-index: 20; left: 0; right: 0; top: 34px; padding: 6px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 12px 28px -14px rgba(0, 0, 0, 0.5);
+  opacity: 0; transform: translateY(-4px); visibility: hidden; pointer-events: none;
+  transition: opacity 0.18s var(--ease-inout), transform 0.18s var(--ease-inout), visibility 0s linear 0.18s;
+}
+.pl-rest-tip.is-open {
+  opacity: 1; transform: none; visibility: visible; pointer-events: auto;
+  transition: opacity 0.18s var(--ease-inout), transform 0.18s var(--ease-inout), visibility 0s;
+}
+.pl-rest-tip-head { margin: 2px 6px 4px; font-size: 11.5px; font-weight: 600; color: var(--text-muted); }
+.pl-rest-opt {
+  display: flex; align-items: center; gap: 6px; width: 100%; padding: 6px; border: 0; border-radius: 6px;
+  font: inherit; font-size: 13px; color: var(--text); background: none; text-align: left; cursor: pointer;
+  transition: background 0.15s var(--ease-inout);
+}
+.pl-rest-opt:hover, .pl-rest-opt:focus-visible { background: var(--overlay-5); }
+.pl-rest-opt.is-current { color: var(--teal); font-weight: 600; }
+.pl-rest-opt-check { display: inline-flex; width: 14px; flex: none; }
+.pl-rest-opt-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-rest-opt-eta { font-variant-numeric: tabular-nums; color: var(--text-muted); }
+
+/* Giờ khởi hành sửa ngay ở điểm đầu */
+.pl-app input.pl-eta-edit {
+  width: auto;
+  height: 28px;
+  padding: 0 4px;
+  font: inherit;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  transition: border-color 0.2s var(--ease-inout);
+}
+.pl-app input.pl-eta-edit:hover, .pl-app input.pl-eta-edit:focus { border-color: var(--border); }
+/* Biểu tượng đồng hồ của trình duyệt đẩy giờ lệch khỏi cột giờ các điểm khác. */
+.pl-eta-edit::-webkit-calendar-picker-indicator { display: none; }
+
 /* Vùng nên nghỉ */
 .pl-stop.is-zone .pl-dot.is-auto { border-style: dotted; }
+
+/* ---------- Tab Đường đi (kiểu komoot) ---------- */
+.pl-path { padding: 14px 16px 24px; display: flex; flex-direction: column; gap: 22px; }
+.pl-path-head { margin: 0 0 10px; font-size: 17px; font-weight: 700; }
+.pl-wps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; position: relative; }
+.pl-wps li { position: relative; }
+/* Vạch nối giữa các viên điểm, như dây xâu */
+.pl-wps li + li::before {
+  content: ''; position: absolute; left: 24px; top: -13px; height: 14px;
+  border-left: 2px dashed var(--border);
+}
+.pl-wp-pill {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 6px 16px 6px 10px;
+  font: inherit; font-size: 15px; color: var(--text); text-align: left; cursor: pointer;
+  background: none; border: 1px solid var(--border); border-radius: 999px;
+  transition: border-color 0.2s var(--ease-inout), background 0.2s var(--ease-inout);
+}
+.pl-wp-pill:hover { border-color: var(--teal); background: var(--overlay-5); }
+.pl-wp-pill.is-add { color: var(--text-muted); }
+.pl-wp-badge {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 30px; height: 30px; border-radius: 50%; font-size: 14px; font-weight: 700;
+  background: var(--text); color: var(--bg);
+}
+.pl-wp-badge.is-end { background: var(--teal); color: #fff; }
+.pl-wp-plus { display: inline-flex; width: 30px; justify-content: center; flex: none; }
+.pl-wp-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-path-tools { display: flex; align-items: center; gap: 14px; margin-top: 14px; font-size: 14px; }
+.pl-switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; }
+.pl-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.pl-switch-track {
+  position: relative; width: 40px; height: 22px; border-radius: 11px; flex: none;
+  background: var(--border); transition: background 0.22s var(--ease-inout);
+}
+.pl-switch-track::after {
+  content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); transition: transform 0.22s var(--ease-inout);
+}
+.pl-switch input:checked + .pl-switch-track { background: var(--teal); }
+.pl-switch input:checked + .pl-switch-track::after { transform: translateX(18px); }
+.pl-switch input:focus-visible + .pl-switch-track { outline: 2px solid var(--teal); outline-offset: 2px; }
+.pl-switch input:disabled ~ * { opacity: 0.5; cursor: default; }
+
+.pl-way-bar { display: flex; gap: 3px; height: 14px; border-radius: 7px; overflow: hidden; }
+.pl-way-seg { flex-basis: 0; min-width: 4px; }
+.pl-way-seg.is-straight {
+  background-image: repeating-linear-gradient(90deg, transparent 0 6px, var(--bg) 6px 9px) !important;
+}
+.pl-way-list { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.pl-way-list li { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+.pl-way-swatch { width: 16px; height: 16px; border-radius: 4px; flex: none; }
+.pl-way-label { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-way-pct { color: var(--text-muted); font-variant-numeric: tabular-nums; font-size: 13px; }
+.pl-way-km { min-width: 64px; text-align: right; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.pl-path-details { margin: 0; }
+.pl-path-details > div { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.pl-path-details > div:last-child { border-bottom: 0; }
+.pl-path-details dt { display: flex; align-items: center; gap: 14px; font-weight: 600; font-size: 15px; }
+.pl-path-details dd { margin: 0; font-size: 15px; font-variant-numeric: tabular-nums; }
+.pl-det-ico { width: 16px; height: 10px; flex: none; color: var(--text-muted); }
+.pl-det-ico.is-up { fill: #E8821E; }
+.pl-det-ico.is-down { fill: var(--teal); }
 
 /* ---------- Gợi ý thứ tự leo ---------- */
 .pl-suggest { border-bottom: 1px solid var(--border); }
@@ -487,7 +657,7 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
   transition: opacity 0.2s var(--ease-inout), transform 0.2s var(--ease-inout), visibility 0s linear 0.2s;
 }
 .pl-dd-panel.is-open { opacity: 1; transform: none; visibility: visible; transition: opacity 0.2s var(--ease-inout), transform 0.2s var(--ease-inout); }
-.pl-settings { display: grid; gap: 16px; width: 300px; }
+.pl-settings { display: grid; gap: 16px; width: min(450px, calc(100vw - 48px)); }
 .pl-field { display: grid; gap: 6px; }
 .pl-field p { margin: 0; font-size: 12px; line-height: 1.4; }
 .pl-field-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; }
@@ -681,6 +851,8 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
   border: 2px dashed #B4690E;
 }
 .pl-mk-auto.is-zone { border-style: dotted; background: #FFF7EA; }
+/* Điểm chỉ để cho biết (bắt đầu leo): viền liền màu đi bộ, không phải lán tự chọn. */
+.pl-mk-auto.is-info { border-style: solid; border-color: #2F677A; color: #2F677A; }
 .pl-popup .maplibregl-popup-content {
   padding: 12px 14px;
   border-radius: 8px;
@@ -812,6 +984,8 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
   .pl-stats { display: none; }
   .pl-controls { top: 64px; transform: none; }
   .pl-stop-tools, .pl-seg { opacity: 1; }
+  .pl-stop { grid-template-columns: 54px 1fr auto; }
+  .pl-stop-tools { position: static; transform: none; pointer-events: auto; padding: 0; background: none; border: 0; box-shadow: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

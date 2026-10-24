@@ -44,6 +44,8 @@ export function resultSegments(resultDoc: PlanDoc, result: PlanResult): Map<stri
 
 export type Row =
   | { type: 'day'; day: ResultDay }
+  /** Đầu mỗi ngày từ ngày thứ hai: chỗ ngủ đêm trước, kèm giờ xuất phát của ngày. */
+  | { type: 'dayStart'; day: ResultDay }
   | {
     type: 'stop'
     wp: Waypoint
@@ -57,6 +59,8 @@ export type Row =
     leg: ResultLeg | null
     /** Điểm cuối đoạn — nơi giữ ô "đi bộ / đi xe" của đoạn. Chỉ có ở chặng đầu của đoạn. */
     toggleFor: Waypoint | null
+    /** Mọi chặng của đoạn (chỉ có ở chặng đầu, cùng `toggleFor`) — để quyết có hiện nút đi bộ / đi xe. */
+    pairLegs?: ResultLeg[]
   }
 
 export interface Timeline {
@@ -86,7 +90,7 @@ export function buildTimeline(
   if (days.length > 0 && firstInfo) rows.push({ type: 'day', day: days[0] })
   const pushDayAfter = (stopId: string) => {
     const next = dayAfter.get(stopId)
-    if (next) rows.push({ type: 'day', day: next })
+    if (next) rows.push({ type: 'day', day: next }, { type: 'dayStart', day: next })
   }
 
   for (let i = 0; i < wps.length; i++) {
@@ -102,7 +106,12 @@ export function buildTimeline(
       continue
     }
     seg.legs.forEach((leg, j) => {
-      rows.push({ type: 'leg', leg, toggleFor: j === 0 ? wps[i + 1] : null })
+      rows.push({
+        type: 'leg',
+        leg,
+        toggleFor: j === 0 ? wps[i + 1] : null,
+        ...(j === 0 ? { pairLegs: seg.legs } : {}),
+      })
       const auto = seg.autos[j]
       if (auto) {
         rows.push({ type: 'auto', stop: auto, afterWaypointId: wp.id })
@@ -154,4 +163,15 @@ export function drawLines(
     for (const stop of seg.autos) autos.push({ stop, afterWaypointId: a.id })
   }
   return { lines, autos }
+}
+
+/**
+ * Có hiện nút "Đi bộ / Đi xe" cho đoạn giữa hai điểm không (chủ sản phẩm 24/10):
+ * ẩn khi cả đoạn là đi bộ trên lộ trình WayTrek đã biết (leo lên lán, lên đỉnh)
+ * — trên lối mòn không có xe. Đoạn xe dài thì VẪN hiện: đi bộ hàng trăm km xuyên
+ * tuyến là chuyện có thật. Người dùng tự chọn đi xe thì hiện để còn đổi lại.
+ */
+export function transportChoiceShown(transport: Waypoint['transport'], legs: readonly ResultLeg[] | null): boolean {
+  if (transport === 'vehicle' || !legs || legs.length === 0) return true
+  return !legs.every((l) => l.transport === 'walk' && l.knownPct >= 90)
 }

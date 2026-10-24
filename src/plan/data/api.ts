@@ -3,7 +3,7 @@
 
 import type { ChecklistRow } from '../core/checklist'
 import type { SaveOutcome } from '../core/save-queue'
-import type { PeakCombo, PlanDoc, PlanResult, PoiPin, RouteLine, StartTrailhead, SuggestOutcome, TrailPin } from '../core/types'
+import type { PeakCombo, Place, PlanDoc, PlanResult, PoiPin, RouteLine, StartTrailhead, SuggestOutcome, TrailPin } from '../core/types'
 import { SUPABASE_ANON_KEY, TRIP_PLAN_URL } from '../config'
 import { supabase } from './supabase'
 
@@ -105,6 +105,19 @@ export async function fetchSnap(at: { lat: number; lng: number }, signal?: Abort
   if (status !== 200) throw errorOf(status, json)
   const s = json.snap as { lat: number; lon: number; distM: number } | null
   return s ? { lat: s.lat, lng: s.lon, distM: s.distM } : null
+}
+
+/**
+ * Tìm địa điểm trong Việt Nam theo chữ (ORS qua máy chủ — khoá không lộ ra web).
+ * Hạn mức của ORS có trần theo ngày: chỗ gọi phải debounce.
+ */
+export async function geocodePlaces(text: string, focus: { lat: number; lng: number } | null, signal?: AbortSignal): Promise<Place[]> {
+  const { status, json } = await callTripPlan(
+    { action: 'geocode', text, ...(focus ? { focus: { lat: focus.lat, lon: focus.lng } } : {}) },
+    signal,
+  )
+  if (status === 200 && Array.isArray(json.places)) return json.places as Place[]
+  throw errorOf(status, json)
 }
 
 /** Tính + lưu. Máy chủ tự xác thực người dùng từ phiên; không gửi user id. */

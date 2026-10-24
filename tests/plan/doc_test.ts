@@ -1,6 +1,7 @@
 import { assert, assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts'
 import {
   appendWaypoint,
+  chooseRest,
   dismissAutoStop,
   endsAtStart,
   freshWaypointId,
@@ -10,7 +11,9 @@ import {
   moveWaypoint,
   newDoc,
   nextPointName,
+  nightTransferOffered,
   patchSettings,
+  restToggleAllowed,
   prependStart,
   relocateWaypoint,
   removeWaypoint,
@@ -21,7 +24,7 @@ import {
   updateWaypoint,
 } from '../../src/plan/core/doc.ts'
 import { commit, initHistory, redo, undo } from '../../src/plan/core/history.ts'
-import type { PlanDoc, ResultStop } from '../../src/plan/core/types.ts'
+import type { PlanDoc, RestChoice, ResultStop } from '../../src/plan/core/types.ts'
 
 const pt = (id: string, lat = 22.5, lon = 103.6, kind: 'custom' | 'poi' | 'peak' = 'custom', ref?: string) =>
   makeWaypoint({ id, kind, ref, lat, lon, name: id })
@@ -228,4 +231,78 @@ Deno.test('giờ sớm nhất: đặt 02:00 thì ghi, đặt lại 04:30 thì xo
   assertEquals(early.earliestDepartMin, 120)
   assertEquals('earliestDepartMin' in patchSettings(early, { earliestDepartMin: 270 }), false)
   assertEquals(patchSettings(d, { earliestDepartMin: 2000 }).earliestDepartMin, 720)
+})
+
+Deno.test('ô "Nghỉ đêm ở đây": chỉ điểm giữa, không cho đỉnh (đỉnh lỡ đánh dấu thì vẫn bỏ được)', () => {
+  const at = (kind: 'peak' | 'custom', rest = false) =>
+    ({ ...makeWaypoint({ id: 'x', kind, lat: 22, lon: 104, name: 'x' }), rest })
+  assertEquals(restToggleAllowed(at('custom'), 1, 3), true)
+  assertEquals(restToggleAllowed(at('peak'), 1, 3), false)
+  assertEquals(restToggleAllowed(at('peak', true), 1, 3), true)
+  assertEquals(restToggleAllowed(at('custom'), 0, 3), false)
+  assertEquals(restToggleAllowed(at('custom'), 2, 3), false)
+})
+
+Deno.test('lán không có ô tick nghỉ đêm — đổi lán bằng restChoices', () => {
+  const lan = { ...pt('l', 22.5, 103.6, 'poi', 'poi-1'), rest: true }
+  assertEquals(restToggleAllowed(lan, 1, 3), false)
+})
+
+const choice = (poiId: string, extra: Partial<RestChoice> = {}): RestChoice => ({
+  poiId, name: poiId, etaMin: 900, latE6: 22505000, lonE6: 103610000,
+  waypointIndex: -1, afterWaypointIndex: 0, current: false, ...extra,
+})
+
+Deno.test('[Ngủ ở] lán tự chèn → lán khác chưa có: bỏ lán cũ, chèn lán mới tick nghỉ', () => {
+  const d = withPoints('a', 'b')
+  const r = chooseRest(d, auto, choice('poi-2'), 'n1')
+  assert(r.ok)
+  assertEquals(r.doc.dismissedRestPoiIds, ['poi-1'])
+  assertEquals(r.doc.waypoints.map((w) => w.id), ['a', 'n1', 'b'])
+  const n = r.doc.waypoints[1]
+  assertEquals([n.kind, n.ref, n.rest, n.latE6], ['poi', 'poi-2', true, 22505000])
+})
+
+Deno.test('chèn lán giữa chặng: nửa đầu giữ cách đi của chặng cũ, nửa sau bỏ ép đi xe', () => {
+  const d = updateWaypoint(withPoints('a', 'b'), 'b', { transport: 'vehicle' })
+  for (const r of [keepAutoStop(d, auto, 'a', 'k1'), chooseRest(d, auto, choice('poi-2'), 'k1')]) {
+    assert(r.ok)
+    assertEquals(r.doc.waypoints.map((w) => [w.id, w.transport]), [['a', 'auto'], ['k1', 'vehicle'], ['b', 'auto']])
+  }
+  const w = updateWaypoint(withPoints('a', 'b'), 'b', { transport: 'walk' })
+  const r = keepAutoStop(w, auto, 'a', 'k1')
+  assert(r.ok)
+  assertEquals(r.doc.waypoints.map((x) => x.transport), ['auto', 'walk', 'walk'])
+})
+
+Deno.test('[Ngủ ở] điểm lán của người dùng → lán đã là điểm: chuyển dấu nghỉ', () => {
+  let d = withPoints('a', 'b', 'c')
+  d = updateWaypoint(d, 'b', { rest: true })
+  const mine: ResultStop = { ...auto, id: 'wp:b', restSource: 'user', inserted: false, poiId: null, waypointIndex: 1 }
+  const r = chooseRest(d, mine, choice('poi-3', { waypointIndex: 2 }), 'n1')
+  assert(r.ok)
+  assertEquals(r.doc.waypoints.map((w) => [w.id, w.rest]), [['a', false], ['b', false], ['c', true]])
+  assertEquals(chooseRest(d, mine, choice('poi-9', { current: true }), 'n2'), { ok: true, doc: d })
+})
+
+Deno.test('nghỉ trưa: đặt 45 thì ghi, đặt lại 30 thì xoá trường, kẹp 0–180', () => {
+  const d = newDoc('2026-11-02')
+  assertEquals(patchSettings(d, { lunchMin: 45 }).lunchMin, 45)
+  assertEquals('lunchMin' in patchSettings(patchSettings(d, { lunchMin: 45 }), { lunchMin: 30 }), false)
+  assertEquals(patchSettings(d, { lunchMin: 999 }).lunchMin, 180)
+  assertEquals(patchSettings(d, { lunchMin: 0 }).lunchMin, 0)
+})
+
+Deno.test('thời gian trên đỉnh: đặt 45 thì ghi, đặt lại 30 thì xoá trường, kẹp 0–180', () => {
+  const d = newDoc('2026-11-02')
+  assertEquals(patchSettings(d, { summitMin: 45 }).summitMin, 45)
+  assertEquals('summitMin' in patchSettings(patchSettings(d, { summitMin: 45 }), { summitMin: 30 }), false)
+  assertEquals(patchSettings(d, { summitMin: 999 }).summitMin, 180)
+})
+
+Deno.test('ô "Đi tối hôm trước": chỉ khi chặng xe > 100 km, hoặc đang bật sẵn', () => {
+  assertEquals(nightTransferOffered(31_200, null), false)
+  assertEquals(nightTransferOffered(228_600, null), true)
+  assertEquals(nightTransferOffered(31_200, 19 * 60 + 30), true)
+  assertEquals(nightTransferOffered(null, null), false)
 })

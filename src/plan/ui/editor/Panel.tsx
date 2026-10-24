@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { clock, distance, duration, meters, parseClock } from '../../core/format'
+import { distance, duration, meters } from '../../core/format'
 import type { PlanDoc, PlanResult } from '../../core/types'
 import type { SaveState } from './use-plan-editor'
+import { ClockInput } from './ClockInput'
+
+export type PanelTab = 'route' | 'path' | 'prep'
 
 interface Props {
   doc: PlanDoc
@@ -10,9 +13,9 @@ interface Props {
   computing: boolean
   computeError: string | null
   save: SaveState
-  tab: 'route' | 'prep'
+  tab: PanelTab
   prepCount: { done: number; total: number }
-  onTab(t: 'route' | 'prep'): void
+  onTab(t: PanelTab): void
   onTitle(v: string): void
   onDate(v: string): void
   onDepart(min: number): void
@@ -37,7 +40,7 @@ export function Panel(p: Props) {
         <TitleField value={p.doc.title} onCommit={p.onTitle} />
         <div className="pl-when">
           <label>
-            <span>Ngày đi</span>
+            <span>Ngày bắt đầu leo</span>
             <input type="date" value={p.doc.startDate} min="2020-01-01" max="2100-12-31" onChange={(e) => e.target.value && p.onDate(e.target.value)} />
           </label>
           <TimeField value={p.doc.departMin} onCommit={p.onDepart} />
@@ -45,6 +48,9 @@ export function Panel(p: Props) {
       </div>
       <StatusLines {...p} />
       <div className="pl-tabs" role="tablist">
+        <button type="button" role="tab" aria-selected={p.tab === 'path'} className={p.tab === 'path' ? 'is-on' : ''} onClick={() => p.onTab('path')}>
+          Waypoints
+        </button>
         <button type="button" role="tab" aria-selected={p.tab === 'route'} className={p.tab === 'route' ? 'is-on' : ''} onClick={() => p.onTab('route')}>
           Lộ trình
         </button>
@@ -95,30 +101,10 @@ function TitleField({ value, onCommit }: { value: string; onCommit(v: string): v
 }
 
 function TimeField({ value, onCommit }: { value: number; onCommit(min: number): void }) {
-  const [text, setText] = useState(clock(value))
-  const focused = useRef(false)
-  useEffect(() => {
-    if (!focused.current) setText(clock(value))
-  }, [value])
-  const commit = () => {
-    const m = parseClock(text)
-    if (m != null && m !== value) onCommit(m)
-    else setText(clock(value))
-  }
   return (
     <label>
       <span>Giờ xuất phát mỗi ngày</span>
-      <input
-        type="time"
-        value={text}
-        onFocus={() => (focused.current = true)}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={() => {
-          focused.current = false
-          commit()
-        }}
-        onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-      />
+      <ClockInput value={value} onCommit={onCommit} />
     </label>
   )
 }

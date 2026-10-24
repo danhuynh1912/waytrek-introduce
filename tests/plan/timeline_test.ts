@@ -2,7 +2,7 @@ import { assert, assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.t
 import { relocateWaypoint, updateWaypoint } from '../../src/plan/core/doc.ts'
 import { decodePolyline } from '../../src/plan/core/polyline.ts'
 import { eleAt, pointAlong, profileGeometry, stopOffsets } from '../../src/plan/core/profile.ts'
-import { buildTimeline, drawLines, resultSegments } from '../../src/plan/core/timeline.ts'
+import { transportChoiceShown, buildTimeline, drawLines, resultSegments } from '../../src/plan/core/timeline.ts'
 import type { PlanDoc, PlanResult } from '../../src/plan/core/types.ts'
 
 // Kết quả THẬT của `trip-plan` đã deploy (24/10): Kỳ Quan San đi–về, đi xe sang
@@ -15,6 +15,7 @@ const fx = JSON.parse(await Deno.readTextFile(new URL('./fixtures/kqs_laothan.js
 const shape = (rows: ReturnType<typeof buildTimeline>['rows']) =>
   rows.map((r) => {
     if (r.type === 'day') return `day${r.day.index}`
+    if (r.type === 'dayStart') return `start${r.day.index}`
     if (r.type === 'stop') return `stop:${r.wp.id}`
     if (r.type === 'auto') return `auto:${r.stop.name}<${r.afterWaypointId}`
     return r.leg ? `leg${r.toggleFor ? '*' : ''}` : 'pending'
@@ -24,8 +25,9 @@ Deno.test('kết quả khớp doc: mọi đoạn mượn được, ngày mở đ
   const t = buildTimeline(fx.doc, fx.result, fx.doc)
   assertEquals(t.pending, false)
   assertEquals(shape(t.rows), [
-    'day0', 'stop:a', 'leg*', 'auto:Lán nghỉ<a', 'day1', 'leg', 'stop:b', 'leg*', 'auto:Lán nghỉ<b', 'day2',
-    'leg', 'stop:c', 'leg*', 'stop:d', 'leg*', 'auto:Lán 2 Lảo Thẩn<d', 'day3', 'leg', 'stop:e', 'leg*', 'stop:f',
+    'day0', 'stop:a', 'leg*', 'auto:Lán nghỉ<a', 'day1', 'start1', 'leg', 'stop:b', 'leg*', 'auto:Lán nghỉ<b',
+    'day2', 'start2', 'leg', 'stop:c', 'leg*', 'stop:d', 'leg*', 'auto:Lán 2 Lảo Thẩn<d', 'day3', 'start3', 'leg',
+    'stop:e', 'leg*', 'stop:f',
   ])
 })
 
@@ -93,4 +95,18 @@ Deno.test('điểm dọc đường vẽ theo tỉ lệ quãng đường', () => 
   assertEquals(pointAlong(paths, 0), [103, 22])
   assertEquals(pointAlong(paths, 2), [103.03, 22])
   assertEquals(pointAlong([], 0.5), null)
+})
+
+Deno.test('nút đi bộ / đi xe: ẩn khi cả đoạn đi bộ trên lối mòn đã biết; đoạn xe dài vẫn hiện', () => {
+  const leg = (transport: 'walk' | 'vehicle', distanceM: number, knownPct = 100) =>
+    ({ ...fx.result.legs[0], transport, distanceM, knownPct })
+  // Leo lên lán theo lộ trình WayTrek — tự chọn hay đã chọn đi bộ đều ẩn.
+  assertEquals(transportChoiceShown('auto', [leg('walk', 5800)]), false)
+  assertEquals(transportChoiceShown('walk', [leg('walk', 5800)]), false)
+  // Đi xe 228 km rồi leo: vẫn cho chọn đi bộ (đi bộ xuyên tuyến là có thật).
+  assertEquals(transportChoiceShown('auto', [leg('vehicle', 228_000), leg('walk', 5800)]), true)
+  // Đoạn đi bộ chưa có lối: cả hai cách đều hợp lý.
+  assertEquals(transportChoiceShown('auto', [leg('walk', 3000, 20)]), true)
+  // Đã tự chọn đi xe: hiện để đổi lại.
+  assertEquals(transportChoiceShown('vehicle', [leg('walk', 5800)]), true)
 })

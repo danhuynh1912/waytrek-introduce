@@ -42,6 +42,12 @@ export interface PlanDoc {
   autoShift: boolean
   /** Giờ sớm nhất được tự dời tới (phút). Không có = DEFAULT_EARLIEST_DEPART_MIN. */
   earliestDepartMin?: number
+  /** Chặng xe đầu đi tối hôm trước: giờ xe đón (phút). Có = bật → có Ngày 0. */
+  nightTransferMin?: number
+  /** Nghỉ trưa mỗi ngày leo đi qua 12:00 (phút). Không có = DEFAULT_LUNCH_MIN. */
+  lunchMin?: number
+  /** Thời gian ở trên mỗi đỉnh (phút). Không có = DEFAULT_SUMMIT_MIN. */
+  summitMin?: number
   pace: number
   restMinPerHour: number
   sunsetMarginMin: number
@@ -62,6 +68,20 @@ export type LegFlag =
   | 'noRoadRoute'
   /** Có đoạn đi xe ôm theo lộ trình WayTrek (người ghi track đã đi xe ở đó). */
   | 'motoTaxi'
+
+/** Một lán có thể ngủ thay cho chỗ ngủ hiện tại (cùng đêm, vẫn đi kịp). */
+export interface RestChoice {
+  poiId: string
+  name: string
+  etaMin: number
+  latE6: number
+  lonE6: number
+  /** Lán trùng một điểm của người dùng (chỉ số điểm), -1 = chưa có trong kế hoạch. */
+  waypointIndex: number
+  /** Lán nằm sau điểm thứ mấy của người dùng — chỗ chèn nếu chọn nó. */
+  afterWaypointIndex: number
+  current: boolean
+}
 
 export interface ResultStop {
   id: string
@@ -84,7 +104,15 @@ export interface ResultStop {
   /** Mốc giờ đã giải ra phút (bình minh → giờ thật). */
   targetMin: number | null
   /** Có ở điểm nghỉ máy chủ dựng chỗ KHÔNG có lán nào. */
+  /** Chỗ ngủ là lán và quanh đó có lán khác đi kịp: các lựa chọn (gồm cả chính nó). */
+  restChoices?: RestChoice[]
   zone: RestZone | null
+  /** Chỗ ngủ sau chặng xe tối hôm trước (Ngày 0). */
+  transfer?: true
+  /** Điểm bắt đầu leo (xe → đi bộ). Chỉ để xem giờ, không phải chỗ nghỉ. */
+  trailhead?: true
+  /** Điểm lên xe (đi bộ → xe). Chỉ để xem giờ. */
+  pickup?: true
   /** Lán nằm lệch lối: phải rẽ vào khoảng chừng này mét (null = ngay trên lối); bản engine cũ không có. */
   offTrailM?: number | null
 }
@@ -113,6 +141,14 @@ export interface DrawPiece {
   line: string
   /** Đoạn vehicle này là xe ôm theo lộ trình WayTrek (không phải ô tô trên đường bộ). */
   moto?: true
+  /** Đoạn route: cung của lộ trình WayTrek đi theo. */
+  trailId?: string
+  // Số đo của mảnh (engine ≥ 6) — kết quả đã lưu từ engine cũ không có.
+  distanceM?: number
+  ascentM?: number
+  descentM?: number
+  /** Phút đi bộ + phút trên xe, không gồm nghỉ ngắn. */
+  moveMin?: number
 }
 
 export interface ResultLeg {
@@ -169,6 +205,10 @@ export interface ResultDay {
   /** Điểm có mốc quyết định giờ xuất phát của ngày. */
   anchorStopId: string | null
   warnings: DayWarning[]
+  /** Ngày 0: chặng xe tối hôm trước ngày bắt đầu leo. */
+  transfer?: true
+  /** Phút nghỉ trưa đã cộng vào ngày (không có = không nghỉ trưa). */
+  lunchMin?: number
 }
 
 export interface PlanResult {
@@ -280,4 +320,15 @@ export interface StartTrailhead {
   routeName: string | null
   /** Phút từ chân lên đỉnh (gồm nghỉ ngắn). */
   upMin: number
+}
+
+/** Địa điểm tìm theo chữ (action "geocode" của trip-plan — OpenRouteService). */
+export interface Place {
+  /** gid của ORS, ổn định giữa các lần tìm. */
+  id: string
+  name: string
+  /** Nhãn đầy đủ (phường, quận, tỉnh) để phân biệt chỗ trùng tên. */
+  label: string
+  lat: number
+  lon: number
 }

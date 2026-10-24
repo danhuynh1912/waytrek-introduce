@@ -46,6 +46,7 @@ export const IInfo = (p: P) => <Svg {...p}><circle cx="12" cy="12" r="8.5" /><pa
 export const ICheck = (p: P) => <Svg {...p}><path d="m5 12.5 4.5 4.5L19 7.5" /></Svg>
 export const IBack = (p: P) => <Svg {...p}><path d="M15 6l-6 6 6 6" /></Svg>
 export const IReturn = (p: P) => <Svg {...p}><path d="M9 7 4 12l5 5" /><path d="M4 12h11a5 5 0 0 0 0-10h-2" /></Svg>
+export const IList = (p: P) => <Svg {...p}><path d="M9 6.5h11M9 12h11M9 17.5h11" /><circle cx="4.5" cy="6.5" r="0.9" /><circle cx="4.5" cy="12" r="0.9" /><circle cx="4.5" cy="17.5" r="0.9" /></Svg>
 export const IMore = (p: P) => <Svg {...p}><circle cx="5.5" cy="12" r="0.9" /><circle cx="12" cy="12" r="0.9" /><circle cx="18.5" cy="12" r="0.9" /></Svg>
 export const IGoogle = ({ size = 18 }: P) => (
   <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">

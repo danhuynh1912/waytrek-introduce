@@ -43,8 +43,8 @@ export interface MapWaypoint extends LatLng {
   name: string
   rest: boolean
   peak: boolean
-  /** Điểm đầu / cuối không có ô nghỉ đêm. */
-  middle: boolean
+  /** Có nút "Nghỉ đêm ở đây" (core/doc restToggleAllowed): điểm giữa, không phải đỉnh. */
+  restToggle: boolean
 }
 
 export interface MapAuto extends LatLng {
@@ -52,6 +52,8 @@ export interface MapAuto extends LatLng {
   name: string
   /** Vùng nên nghỉ (polyline mã hoá) — có thì đây là chỗ cắm trại, không phải lán. */
   zoneLine?: string
+  /** Điểm engine chèn chỉ để cho biết (điểm bắt đầu leo, chỗ ngủ sau xe tối hôm trước): không Giữ / Bỏ. */
+  info?: { sub: string; icon: 'walk' | 'car' | 'tent' }
 }
 
 export type LayerKey = 'routes' | 'pois' | 'peaks' | 'terrain'
@@ -99,6 +101,22 @@ interface Palette {
 export function planLineColors(dark: boolean): { walk: string; vehicle: string } {
   const C = PALETTE[dark ? 'dark' : 'light']
   return { walk: C.route, vehicle: C.vehicle }
+}
+
+/**
+ * Màu từng loại đường ở tab "Waypoints" — lấy từ đúng bảng màu của đường vẽ trên
+ * bản đồ, để thanh "Loại đường" đọc cùng một thứ tiếng với bản đồ. Lối mòn OSM
+ * và xe ôm là bản nhạt của đi bộ / đi xe (trên bản đồ chúng cùng màu đó).
+ */
+export function wayColors(dark: boolean): Record<'route' | 'path' | 'straight' | 'vehicle' | 'moto', string> {
+  const C = PALETTE[dark ? 'dark' : 'light']
+  return {
+    route: C.route,
+    path: `color-mix(in srgb, ${C.route} 50%, transparent)`,
+    straight: C.straight,
+    vehicle: C.vehicle,
+    moto: `color-mix(in srgb, ${C.vehicle} 55%, transparent)`,
+  }
 }
 
 /** Nhãn "Xe ôm" chỉ hiện từ mức phóng này (nhìn xa, đoạn xe ôm chỉ vài pixel). */
@@ -338,6 +356,30 @@ export class PlanMap {
     // Đường xe: nét liền màu cam — đúng màu phương tiện của app WayTrek.
     planLine('wt-plan-vehicle', 'vehicle', C.vehicle, 4)
     planLine('wt-plan-pending', 'pending', C.pending, 3, [1, 1.4])
+    // Mũi tên hướng đi dọc nét kế hoạch (ý từ komoot, kiểu của WayTrek): viên
+    // tròn màu của chính đoạn, chevron trắng, tự xoay theo chiều đi. Nhìn xa vẫn
+    // có nhưng thưa (gần như một cái mỗi đoạn), phóng gần thì dày dần.
+    for (const [id, color] of [['wt-arrow-walk', C.route], ['wt-arrow-vehicle', C.vehicle]] as const) {
+      if (!m.hasImage(id)) {
+        const img = arrowImage(color, C.casing)
+        if (img) m.addImage(id, img, { pixelRatio: 2 })
+      }
+    }
+    m.addLayer({
+      id: 'wt-plan-arrows',
+      type: 'symbol',
+      source: 'wt-plan',
+      filter: ['in', ['get', 'kind'], ['literal', ['route', 'path', 'vehicle']]],
+      layout: {
+        'symbol-placement': 'line',
+        'symbol-spacing': ['interpolate', ['linear'], ['zoom'], 6, 2000, 10, 900, 13, 260, 15, 160],
+        'icon-image': ['case', ['==', ['get', 'kind'], 'vehicle'], 'wt-arrow-vehicle', 'wt-arrow-walk'],
+        'icon-size': ['interpolate', ['linear'], ['zoom'], 6, 0.75, 13, 1],
+        'icon-rotation-alignment': 'map',
+        'icon-keep-upright': false,
+        'icon-padding': 6,
+      },
+    })
     // Đoạn xe ôm theo lộ trình WayTrek: nét cam như mọi đoạn xe, thêm một
     // tooltip trắng có đuôi chỉ xuống, đứng PHÍA TRÊN điểm giữa đoạn — không đè
     // lên nét. Chỉ hiện từ MOTO_MIN_ZOOM: nhìn xa thì đoạn xe ôm chỉ là vài
@@ -630,10 +672,10 @@ export class PlanMap {
         continue
       }
       const el = document.createElement('div')
-      el.className = `pl-mk pl-mk-auto${a.zoneLine ? ' is-zone' : ''}`
+      el.className = `pl-mk pl-mk-auto${a.zoneLine ? ' is-zone' : ''}${a.info ? ' is-info' : ''}`
       el.setAttribute('role', 'button')
-      el.setAttribute('aria-label', a.zoneLine ? 'Vùng nên nghỉ — cắm trại' : `${a.name} — lán tự chọn`)
-      el.innerHTML = TENT_SVG
+      el.setAttribute('aria-label', a.zoneLine ? 'Vùng nên nghỉ — cắm trại' : a.info ? a.name : `${a.name} — lán tự chọn`)
+      el.innerHTML = a.info?.icon === 'walk' ? WALK_SVG : a.info?.icon === 'car' ? CAR_SVG : TENT_SVG
       const marker = new maplibregl.Marker({ element: el, anchor: 'center' }).setLngLat([a.lng, a.lat]).addTo(this.#map)
       const entry = { marker, data: a }
       stopMapEvents(el, () => this.#openAutoPopup(entry.data))
@@ -765,7 +807,7 @@ export class PlanMap {
 
   #openWaypointPopup(w: MapWaypoint): void {
     const actions: CardAction[] = []
-    if (w.middle) {
+    if (w.restToggle) {
       actions.push({
         label: w.rest ? 'Bỏ nghỉ đêm ở đây' : 'Nghỉ đêm ở đây',
         primary: !w.rest,
@@ -777,6 +819,10 @@ export class PlanMap {
   }
 
   #openAutoPopup(a: MapAuto): void {
+    if (a.info) {
+      this.#open(a, card(a.name, a.info.sub, [], () => this.#closePopup()))
+      return
+    }
     if (a.zoneLine) {
       this.#open(a, card('Vùng nên nghỉ', 'Chưa có lán — nghỉ đêm trong đoạn tô màu, mang lều', [
         { label: 'Đặt chỗ cắm trại', primary: true, run: () => this.#h.onKeepAuto(a.id) },
@@ -850,6 +896,10 @@ function stopMapEvents(el: HTMLElement, onClick: () => void): void {
   el.addEventListener('dblclick', (e) => e.stopPropagation())
 }
 
+const CAR_SVG =
+  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 16V11l2-5h10l2 5v5"/><path d="M3 16h18v2H3z"/></svg>'
+const WALK_SVG =
+  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13" cy="4.5" r="1.8"/><path d="m10 21 2-6 3 3v3M12 15l-1-5 4 1 2 3M11 10l-3 2-1 3"/></svg>'
 const TENT_SVG =
   '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20 12 4l9 16M12 4v16M8.5 20 12 13l3.5 7"/></svg>'
 
@@ -897,4 +947,33 @@ function tooltipImage(): ImageData | null {
   // Lấp vạch viền giữa thân và đuôi.
   g.fillRect(27, 34, 10, 4)
   return g.getImageData(0, 0, 64, 52)
+}
+
+/**
+ * Viên tròn 22 px (vẽ ở 2×) màu `fill`, viền `ring`, chevron trắng chỉ sang PHẢI
+ * — symbol đặt theo nét xoay trục x của ảnh theo chiều đi của nét.
+ */
+function arrowImage(fill: string, ring: string): ImageData | null {
+  const cv = document.createElement('canvas')
+  cv.width = 44
+  cv.height = 44
+  const g = cv.getContext('2d')
+  if (!g) return null
+  g.fillStyle = fill
+  g.strokeStyle = ring
+  g.lineWidth = 4
+  g.beginPath()
+  g.arc(22, 22, 18, 0, Math.PI * 2)
+  g.fill()
+  g.stroke()
+  g.strokeStyle = '#FFFFFF'
+  g.lineWidth = 4.5
+  g.lineCap = 'round'
+  g.lineJoin = 'round'
+  g.beginPath()
+  g.moveTo(17, 13)
+  g.lineTo(26, 22)
+  g.lineTo(17, 31)
+  g.stroke()
+  return g.getImageData(0, 0, 44, 44)
 }

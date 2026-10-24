@@ -130,3 +130,13 @@ Deno.test('cảnh báo mới: trần theo ngày, xe sau hoàng hôn, trễ mốc
   assertEquals(dayNote(late).text.startsWith('tới khoảng 11:27'), true)
   assertEquals(dayNote({ code: 'campZone', stopId: 'zone:1' }).level, 'warn')
 })
+
+Deno.test('chặng xe: bước ra đường đón xe 60 m không có lối thì không cảnh báo; 400 m thì có', () => {
+  const car = (unknownM: number) =>
+    leg({ transport: 'vehicle', knownPct: 0, unknownM, flags: ['unknownPath'] })
+  assertEquals(knownNote(car(60)), null)
+  assertEquals(knownNote(car(400))?.level, 'danger')
+  // Chặng đi bộ: dưới 100 m (ra tới đường) thì thôi, từ 100 m thì nói ra.
+  assertEquals(knownNote(leg({ knownPct: 0, unknownM: 60, flags: ['unknownPath'] })), null)
+  assertEquals(knownNote(leg({ knownPct: 0, unknownM: 150, flags: ['unknownPath'] }))?.level, 'danger')
+})

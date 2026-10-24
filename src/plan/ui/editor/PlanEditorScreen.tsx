@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import {
   appendWaypoint,
+  chooseRest,
   dismissAutoStop,
   endsAtStart,
   freshWaypointId,
@@ -19,8 +20,10 @@ import {
   suggestReadiness,
   updateWaypoint,
 } from '../../core/doc'
+import { restToggleAllowed } from '../../core/doc'
 import type { SettingsPatch } from '../../core/doc'
 import { progress } from '../../core/checklist'
+import { clock } from '../../core/format'
 import { decodePolyline } from '../../core/polyline'
 import { pointAlong } from '../../core/profile'
 import { buildTimeline, drawLines } from '../../core/timeline'
@@ -35,8 +38,11 @@ import { Checklist } from './Checklist'
 import { MapView } from './MapView'
 import type { MapApi } from './MapView'
 import { Panel } from './Panel'
+import type { PanelTab } from './Panel'
+import { PathTab } from './PathTab'
 import { StatsBar } from './StatsBar'
 import { SearchDialog } from './SearchDialog'
+import type { SearchPick } from './SearchDialog'
 import { StartPeakDialog } from './StartPeakDialog'
 import type { StartPeakAsk } from './StartPeakDialog'
 import { SuggestPanel } from './SuggestPanel'
@@ -82,7 +88,7 @@ export function PlanEditorScreen({
   const { trails, pois, combos, error: catalogError, retry: retryCatalog } = useCatalog()
   const mapApi = useRef<MapApi | null>(null)
   const [layers, setLayers] = useState<Record<LayerKey, boolean>>({ routes: true, pois: true, peaks: true, terrain: true })
-  const [tab, setTab] = useState<'route' | 'prep'>('route')
+  const [tab, setTab] = useState<PanelTab>('path')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [toast, setToast] = useState<{ text: string; action?: { label: string; run(): void } } | null>(null)
   const [startAsk, setStartAsk] = useState<StartPeakAsk | null>(null)
@@ -111,7 +117,6 @@ export function PlanEditorScreen({
   )
 
   const trailsById = useMemo(() => new Map(trails.map((t) => [t.trailId, t])), [trails])
-  const poisById = useMemo(() => new Map(pois.map((p) => [p.poiId, p])), [pois])
   const timeline = useMemo(() => buildTimeline(ed.doc, ed.result, ed.resultDoc), [ed.doc, ed.result, ed.resultDoc])
   const draw = useMemo(() => drawLines(ed.doc, ed.result, ed.resultDoc), [ed.doc, ed.result, ed.resultDoc])
 
@@ -125,7 +130,7 @@ export function PlanEditorScreen({
         name: w.name,
         rest: w.rest && i > 0 && i < all.length - 1,
         peak: w.kind === 'peak',
-        middle: i > 0 && i < all.length - 1,
+        restToggle: restToggleAllowed(w, i, all.length),
       })),
     [ed.doc.waypoints],
   )
@@ -137,6 +142,18 @@ export function PlanEditorScreen({
         lng: stop.lonE6 / 1e6,
         name: stop.name,
         zoneLine: stop.zone?.line,
+        ...(stop.trailhead || stop.transfer || stop.pickup
+          ? {
+            info: {
+              sub: [
+                stop.trailhead ? `Bắt đầu đi bộ lúc ${clock(stop.etaMin)}` : null,
+                stop.pickup ? `Lên xe lúc ${clock(stop.etaMin)}` : null,
+                stop.transfer ? 'Ngủ đêm sau chuyến xe tối hôm trước' : null,
+              ].filter(Boolean).join(' · '),
+              icon: stop.trailhead ? 'walk' as const : stop.pickup ? 'car' as const : 'tent' as const,
+            },
+          }
+          : {}),
       })),
     [draw.autos],
   )
@@ -189,23 +206,28 @@ export function PlanEditorScreen({
   )
 
   /**
-   * Thêm một hoặc nhiều đỉnh (hộp Tìm chọn nhiều, combo) trong MỘT lượt sửa —
-   * hoàn tác một lần là bỏ cả nhóm. Kế hoạch đang trống thì hỏi chỗ xuất phát
-   * cho đỉnh đầu tiên, như khi thêm một đỉnh.
+   * Thêm một hoặc nhiều đỉnh / địa điểm (hộp Tìm chọn nhiều, combo) trong MỘT
+   * lượt sửa — hoàn tác một lần là bỏ cả nhóm. Kế hoạch đang trống và mục đầu
+   * là đỉnh thì hỏi chỗ xuất phát cho đỉnh đó, như khi thêm một đỉnh.
    */
-  const addPeaks = useCallback(
-    (ts: TrailPin[]) => {
-      const peaks = ts.filter((t) => t.hasPeak)
-      if (peaks.length === 0) {
-        if (ts[0]) mapApi.current?.flyTo(ts[0], 12.5, fitPadding())
+  const addPicks = useCallback(
+    (items: SearchPick[]) => {
+      const picks = items.filter((p) => p.kind === 'place' || p.trail.hasPeak)
+      if (picks.length === 0) {
+        const t = items[0]
+        if (t?.kind === 'peak') mapApi.current?.flyTo(t.trail, 12.5, fitPadding())
         return
       }
+      const at = (p: SearchPick) => (p.kind === 'peak' ? { lat: p.trail.lat, lng: p.trail.lng } : { lat: p.place.lat, lng: p.place.lon })
       const first = ed.doc.waypoints.length === 0
       let firstWp: Waypoint | null = null
       const ok = apply((doc) => {
         let cur = doc
-        for (const t of peaks) {
-          const wp = makeWaypoint({ id: freshWaypointId(cur, rid), kind: 'peak', ref: t.trailId, lat: t.lat, lon: t.lng, name: t.name })
+        for (const p of picks) {
+          const id = freshWaypointId(cur, rid)
+          const wp = p.kind === 'peak'
+            ? makeWaypoint({ id, kind: 'peak', ref: p.trail.trailId, lat: p.trail.lat, lon: p.trail.lng, name: p.trail.name })
+            : makeWaypoint({ id, kind: 'custom', lat: p.place.lat, lon: p.place.lon, name: p.place.name })
           firstWp ??= wp
           const r = appendWaypoint(cur, wp)
           if (!r.ok) return r
@@ -214,12 +236,13 @@ export function PlanEditorScreen({
         return cur
       })
       if (!ok || !firstWp) return
-      if (peaks.length === 1) mapApi.current?.flyTo(peaks[0], 12.5, fitPadding())
-      else mapApi.current?.fit(peaks.map((t) => ({ lat: t.lat, lng: t.lng })), fitPadding())
-      if (!first) return
+      if (picks.length === 1) mapApi.current?.flyTo(at(picks[0]), picks[0].kind === 'peak' ? 12.5 : 15, fitPadding())
+      else mapApi.current?.fit(picks.map(at), fitPadding())
+      const head = picks[0]
+      if (!first || head.kind !== 'peak') return
       // Đỉnh làm điểm đầu: hỏi có thật xuất phát trên đỉnh, hay để máy chọn chân núi.
       const p: Waypoint = firstWp
-      const t = peaks[0]
+      const t = head.trail
       const settingsDoc = ed.doc
       setStartAsk({
         peakName: t.name,
@@ -231,14 +254,20 @@ export function PlanEditorScreen({
               : { ok: false, reason: 'missing' },
           )
           if (placed) {
-            mapApi.current?.fit([{ lat: th.latE6 / 1e6, lng: th.lonE6 / 1e6 }, ...peaks.map((x) => ({ lat: x.lat, lng: x.lng }))], fitPadding())
+            mapApi.current?.fit([{ lat: th.latE6 / 1e6, lng: th.lonE6 / 1e6 }, ...picks.map(at)], fitPadding())
           }
         },
       })
     },
     [apply, ed.doc],
   )
-  const addPeak = useCallback((t: TrailPin) => addPeaks([t]), [addPeaks])
+  // Tìm địa điểm: ưu tiên kết quả gần điểm cuối của kế hoạch (chỗ sắp đi tiếp).
+  const lastWp = ed.doc.waypoints[ed.doc.waypoints.length - 1]
+  const lastPoint = useMemo(
+    () => (lastWp ? { lat: lastWp.latE6 / 1e6, lng: lastWp.lonE6 / 1e6 } : null),
+    [lastWp],
+  )
+  const addPeak = useCallback((t: TrailPin) => addPicks([{ kind: 'peak', trail: t }]), [addPicks])
 
   const autoById = useCallback(
     (id: string) => draw.autos.find((a) => a.stop.id === id) ?? null,
@@ -328,7 +357,11 @@ export function PlanEditorScreen({
     keepAuto,
     dismissAuto,
     setArriveAt: (id, at) => apply((doc) => setArriveAt(doc, id, at)),
-    focus: (lat, lng) => mapApi.current?.flyTo({ lat, lng }, 13, fitPadding()),
+    setNightTransfer: (min) => apply((doc) => patchSettings(doc, { nightTransferMin: min })),
+    setDepart: (min) => apply((doc) => patchSettings(doc, { departMin: min })),
+    chooseRest: (stop, choice) => apply((doc) => chooseRest(doc, stop, choice, freshWaypointId(doc, rid))),
+    // Bấm chấm số ở lộ trình: soi kỹ đúng điểm đó (chủ sản phẩm 24/10 — 13 còn xa quá).
+    focus: (lat, lng) => mapApi.current?.flyTo({ lat, lng }, 16, fitPadding()),
   }
 
   const settings = (p: SettingsPatch) => apply((doc) => patchSettings(doc, p))
@@ -523,8 +556,9 @@ export function PlanEditorScreen({
               fresh={ed.fresh || ed.result == null}
               computeError={ed.computeError}
               trails={trailsById}
-              pois={poisById}
               actions={actions}
+              nightTransferMin={ed.doc.nightTransferMin ?? null}
+              firstLegWpId={ed.doc.waypoints[1]?.id ?? null}
             />
             {count >= 2 && !endsAtStart(ed.doc) && (
               <button
@@ -539,6 +573,22 @@ export function PlanEditorScreen({
               <button type="button" className="pl-text-btn pl-discard" onClick={ed.discardNewDraft}>Bỏ bản nháp này</button>
             )}
           </>
+        ) : tab === 'path' ? (
+          <PathTab
+            doc={ed.doc}
+            result={ed.result}
+            dark={dark}
+            roundTrip={endsAtStart(ed.doc)}
+            onFocus={actions.focus}
+            onAdd={() => setSearchOpen(true)}
+            onRoundTrip={(on) =>
+              apply((doc) => {
+                if (on) return endsAtStart(doc) ? doc : returnToStart(doc, freshWaypointId(doc, rid))
+                // Tắt: bỏ điểm cuối khi nó chính là điểm xuất phát (đã quay về).
+                const last = doc.waypoints[doc.waypoints.length - 1]
+                return endsAtStart(doc) && doc.waypoints.length > 2 ? removeWaypoint(doc, last.id) : doc
+              })}
+          />
         ) : (
           <Checklist
             items={ed.checklist}
@@ -594,7 +644,8 @@ export function PlanEditorScreen({
         trails={trails}
         combos={combos}
         onPick={(t) => mapApi.current?.flyTo(t, 12.5, fitPadding())}
-        onAddPeaks={addPeaks}
+        onAdd={addPicks}
+        focus={lastPoint}
       />
     </div>
   )
