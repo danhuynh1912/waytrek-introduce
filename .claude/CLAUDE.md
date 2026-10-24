@@ -29,6 +29,9 @@ Trang tĩnh giới thiệu app WayTrek: Vite + React + TypeScript, deploy Vercel
   · Hình học tuyến: LineString lẫn MultiLineString; gộp phẳng chỉ để tính khung
     nhìn, vẽ thì giữ ranh giới đoạn (`src/site/core/geometry.ts`). Trục quãng
     đường của biểu đồ độ cao khớp số CÔNG BỐ (`scaleProfile`).
+  · Ảnh cung luôn đi qua `sizedImage` (`src/site/core/images.ts`, render endpoint
+    của Storage, cắt đúng tỉ lệ ô) — KHÔNG đặt `imageUrl` trần vào `<img>`: ảnh gốc
+    trung bình 814 kB, và Supabase tính mọi byte, kể cả từ CDN, vào hạn mức.
   · Ảnh / tên / bài của NGƯỜI DÙNG KHÁC chưa có trên web: trang đó (Bảng Vàng,
     ảnh của cung, người ghi danh) cần một quyết định riêng về lập chỉ mục trước.
   · Test: `npm run test:site` (deno, `tests/site/`).
