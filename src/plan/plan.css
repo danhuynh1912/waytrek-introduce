@@ -227,13 +227,15 @@
 .pl-hit-name { color: var(--text); font-weight: 600; font-size: 13.5px; }
 
 .pl-search-dialog { width: min(520px, calc(100vw - 32px)); padding: 12px; }
-.pl-search-dialog[open] { display: flex; flex-direction: column; max-height: min(84vh, 720px); }
+
 /* Trong hộp chọn đỉnh: danh sách luôn hiện, cuộn chung một vùng. */
 .pl-search-dialog .pl-search-hits {
   position: static; margin: 0; max-height: none; overflow: visible; border: 0; box-shadow: none; padding: 0;
   background: transparent; opacity: 1; transform: none; visibility: visible;
 }
-.pl-picker { flex: 1; min-height: 0; overflow-y: auto; margin: 10px -12px 0; padding: 0 12px; }
+/* Chiều cao cố định cho vùng cuộn — để dialog tự co giãn (flex: 1; min-height: 0)
+ * thì Safari co vùng này về 0, danh sách biến mất (24/10). */
+.pl-picker { max-height: min(62vh, 560px); overflow-y: auto; margin: 10px -12px 0; padding: 0 12px; }
 .pl-picker section + section { margin-top: 12px; }
 .pl-picker-head { margin: 0 0 4px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
 .pl-picker-empty { margin: 6px 0; font-size: 13px; }
