@@ -2,10 +2,10 @@
 // trong app (way_trek/lib/features/group_invite/domain/) — giữ cùng bảng chữ
 // và cùng định dạng chuỗi handoff.
 
+import { ANDROID_PACKAGE, PLAY_URL } from '../shared/links'
+
 export const INVITE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 export const INVITE_HOST = 'www.waytrek.site'
-export const ANDROID_PACKAGE = 'com.trek.way_trek'
-export const PLAY_URL = `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE}`
 
 /** Mã từ path `/j/<mã>`; null khi không phải mã hợp lệ. */
 export function inviteCodeFromPath(pathname: string): string | null {
@@ -42,12 +42,3 @@ export const androidIntent = (code: string) =>
   `intent://j/${code}#Intent;scheme=waytrek;package=${ANDROID_PACKAGE};` +
   `S.browser_fallback_url=${encodeURIComponent(playWithReferrer(code))};end`
 
-export type Platform = 'ios' | 'android' | 'other'
-
-export function detectPlatform(ua: string): Platform {
-  if (/android/i.test(ua)) return 'android'
-  if (/iphone|ipad|ipod/i.test(ua)) return 'ios'
-  // iPadOS báo mình là Mac — phân biệt bằng màn cảm ứng.
-  if (/macintosh/i.test(ua) && typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1) return 'ios'
-  return 'other'
-}

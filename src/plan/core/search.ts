@@ -1,18 +1,8 @@
 // Tìm đỉnh theo tên — bỏ dấu ở CẢ HAI vế, như ô tìm cung của app
 // (`core/utils/search_text.dart`): "ky quan" phải ra "Kỳ Quan San".
 
+import { fold } from '../../shared/text.ts'
 import type { PeakCombo, TrailPin } from './types.ts'
-
-export function fold(s: string): string {
-  return s
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'D')
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    .trim()
-}
 
 /** Khớp đầu tên trước, rồi đầu một từ, rồi chứa ở giữa; vùng chỉ là vế phụ. */
 export function searchTrails(trails: readonly TrailPin[], query: string, limit = 8): TrailPin[] {

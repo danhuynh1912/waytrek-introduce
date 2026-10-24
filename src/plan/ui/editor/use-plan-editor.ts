@@ -8,7 +8,7 @@ import { customItemId, editItem, MAX_ITEMS, mergeRows, viewChecklist } from '../
 import type { ChecklistItem, ChecklistRow } from '../../core/checklist'
 import { newDoc, sameDoc } from '../../core/doc'
 import type { EditResult } from '../../core/doc'
-import { todayVn } from '../../core/format'
+import { todayVn } from '@/shared/format'
 import { commit, initHistory, redo, undo } from '../../core/history'
 import type { History } from '../../core/history'
 import { SaveQueue } from '../../core/save-queue'

@@ -11,20 +11,19 @@ import type {
   MapMouseEvent,
   Marker,
   Popup,
-  StyleSpecification,
 } from 'maplibre-gl'
 import type { Feature, FeatureCollection } from 'geojson'
-import { DEM_TILES_URL, MAP_STYLE_URL } from '../../config'
 import { decodePolyline } from '../../core/polyline'
-import { RELIEF_HILLSHADE, RELIEF_TINT, reliefStyle } from '../../core/relief-style'
+import { MAP_INK } from '@/shared/map/ink'
+import type { MapInk } from '@/shared/map/ink'
+import { ReliefMap } from '@/shared/map/relief-map'
+import { RELIEF_HILLSHADE, RELIEF_TINT } from '@/shared/map/relief-style'
 import { nearestOnLines, SNAP_PX } from '../../core/snap'
 import { mergeRoutes } from '../../core/route-merge'
 import type { MergedLine } from '../../core/route-merge'
 import type { DrawLine } from '../../core/timeline'
 import type { PoiPin, RouteLine, TrailPin } from '../../core/types'
 import type { Bbox } from '../../data/api'
-import { loadBaseStyle } from '../../data/map-style'
-import type { StyleJson } from '../../data/map-style'
 import { poiKindLabel } from '../labels'
 
 export interface LatLng {
@@ -76,23 +75,14 @@ export interface PlanMapHandlers {
 // tối của ui-lab) chứ không theo token giao diện — cùng luật "nhìn thứ phía
 // sau" của app. Bản tối đổi nét kế hoạch sang teal sáng và viền tối, nếu không
 // nét teal sẫm chìm hẳn vào nền gần đen.
-interface Palette {
-  route: string
-  casing: string
+/** Màu riêng của trang lên kế hoạch, cộng thêm vào bảng màu chung `MAP_INK`. */
+interface Palette extends MapInk {
   straight: string
-  vehicle: string
   pending: string
   catalog: string
   catalogOpacity: number
-  peak: string
-  peakStroke: string
-  label: string
-  halo: string
-  poiLabel: string
   shelter: string
-  water: string
   other: string
-  poiStroke: string
   zone: string
   zoneOpacity: number
 }
@@ -124,42 +114,24 @@ const MOTO_MIN_ZOOM = 11
 
 const PALETTE: Record<'light' | 'dark', Palette> = {
   light: {
-    route: '#2F677A',
-    casing: '#FFFFFF',
+    ...MAP_INK.light,
     straight: '#B4690E',
-    vehicle: '#E8821E',
     pending: '#6B7C85',
     catalog: '#7A6E58',
     catalogOpacity: 0.85,
-    peak: '#12222B',
-    peakStroke: '#FFFFFF',
-    label: '#12222B',
-    halo: '#FFFFFF',
-    poiLabel: '#2A3A42',
     shelter: '#8A5A2B',
-    water: '#2B7BB9',
     other: '#6B7C85',
-    poiStroke: '#FFFFFF',
     zone: '#B4690E',
     zoneOpacity: 0.22,
   },
   dark: {
-    route: '#7FBDD0',
-    casing: '#050605',
+    ...MAP_INK.dark,
     straight: '#F5D77A',
-    vehicle: '#E8821E',
     pending: '#8E918A',
     catalog: '#B3AC98',
     catalogOpacity: 0.75,
-    peak: '#E6E8E3',
-    peakStroke: '#0B0C0B',
-    label: '#D4D7CF',
-    halo: 'rgba(11,12,11,0.9)',
-    poiLabel: '#A7AAA2',
     shelter: '#C08A52',
-    water: '#5D9FD0',
     other: '#8E918A',
-    poiStroke: '#0B0C0B',
     zone: '#F5D77A',
     zoneOpacity: 0.2,
   },
@@ -172,24 +144,12 @@ const LAYERS: Record<LayerKey, string[]> = {
   terrain: [RELIEF_HILLSHADE, RELIEF_TINT],
 }
 
-const VIETNAM: { center: [number, number]; zoom: number } = { center: [105.6, 18.4], zoom: 5.1 }
 const empty = (): FeatureCollection => ({ type: 'FeatureCollection', features: [] })
 
-/** Style tạm trong lúc tải style thật: chỉ một màu nền đúng theme, không chớp trắng. */
-const placeholder = (dark: boolean): StyleSpecification => ({
-  version: 8,
-  sources: {},
-  layers: [{ id: 'wt-placeholder', type: 'background', paint: { 'background-color': dark ? '#0B0C0B' : '#F0F5F7' } }],
-})
-
 export class PlanMap {
+  #rm: ReliefMap
   #map: MlMap
   #h: PlanMapHandlers
-  #ready = false
-  #dark: boolean
-  /** Style đang dùng là style thật (đủ glyph để cài lớp chữ), không phải style tạm. */
-  #realStyle = false
-  #base: StyleJson | null = null
   #trails: TrailPin[] = []
   #pois: PoiPin[] = []
   #routes = new Map<string, RouteLine>()
@@ -204,87 +164,52 @@ export class PlanMap {
   #zones: string[] = []
   #popup: Popup | null = null
   #suppressClickUntil = 0
-  #loadTimer: ReturnType<typeof setTimeout>
-  #removed = false
 
   constructor(container: HTMLElement, handlers: PlanMapHandlers, dark: boolean) {
     this.#h = handlers
-    this.#dark = dark
-    this.#map = new maplibregl.Map({
+    // Khởi động bản đồ theo theme (nền tạm, style tự host, đổi theme, hẹn giờ
+    // báo hỏng) là phần dùng chung — `shared/map/relief-map`.
+    this.#rm = new ReliefMap(
       container,
-      style: placeholder(dark),
-      center: VIETNAM.center,
-      zoom: VIETNAM.zoom,
-      // Đường xe / lối mòn của kế hoạch do OpenRouteService (HeiGIT) tìm — điều kiện dùng gói miễn phí.
-      attributionControl: { compact: true, customAttribution: 'Tìm đường © <a href="https://openrouteservice.org/" target="_blank" rel="noopener">openrouteservice.org</a> by HeiGIT' },
-      dragRotate: false,
-      pitchWithRotate: false,
-      touchPitch: false,
-    })
+      {
+        dark,
+        logTag: 'plan',
+        mapOptions: {
+          // Đường xe / lối mòn của kế hoạch do OpenRouteService (HeiGIT) tìm — điều kiện dùng gói miễn phí.
+          attributionControl: { compact: true, customAttribution: 'Tìm đường © <a href="https://openrouteservice.org/" target="_blank" rel="noopener">openrouteservice.org</a> by HeiGIT' },
+          dragRotate: false,
+          pitchWithRotate: false,
+          touchPitch: false,
+        },
+      },
+      { onStyle: (_m, first) => this.#onStyle(first), onFatal: (msg) => handlers.onFatal(msg) },
+    )
+    this.#map = this.#rm.map
     this.#map.touchZoomRotate.disableRotation()
-    this.#loadTimer = setTimeout(() => {
-      if (!this.#ready) this.#h.onFatal('Không tải được bản đồ. Kiểm tra mạng rồi tải lại trang.')
-    }, 20_000)
-    // 'style.load', không phải 'load': 'load' chờ MỌI ô đầu tiên tải xong (ô độ
-    // cao có lúc 5 giây), các lớp của kế hoạch không được phải chờ theo. Bắn lại
-    // sau mỗi lần đổi style (đổi theme) — lớp của kế hoạch cài lại từ dữ liệu đang giữ.
-    this.#map.on('style.load', () => this.#onStyle())
-    this.#map.on('error', (e) => {
-      // Lỗi lẻ của từng ô (ô độ cao ngoài vùng phục vụ…) không chặn gì; chỉ
-      // ghi lại. Style không nạp được thì hẹn giờ ở trên nói ra.
-      console.warn('plan map:', e.error?.message ?? e)
-    })
     this.#map.on('click', (e) => this.#onClick(e))
     this.#map.on('moveend', () => this.#emitView())
     for (const id of ['wt-trails-dot', 'wt-trails-label', 'wt-pois-dot']) {
       this.#map.on('mouseenter', id, () => (this.#map.getCanvas().style.cursor = 'pointer'))
       this.#map.on('mouseleave', id, () => (this.#map.getCanvas().style.cursor = ''))
     }
-    loadBaseStyle()
-      .then((base) => {
-        this.#base = base
-        this.#applyStyle()
-      })
-      .catch((e) => {
-        // Không tải được style gốc để dựng bản theo theme: dùng thẳng URL (bản
-        // sáng, không bóng địa hình) — bản đồ vẫn dùng được, chỉ không đúng theme.
-        console.warn('plan map: không dựng được style theo theme —', e)
-        if (this.#removed) return
-        this.#realStyle = true
-        this.#map.setStyle(MAP_STYLE_URL)
-      })
+  }
+
+  get #ready(): boolean {
+    return this.#rm.ready
   }
 
   destroy(): void {
-    this.#removed = true
-    clearTimeout(this.#loadTimer)
     this.#popup?.remove()
-    this.#map.remove()
+    this.#rm.destroy()
   }
 
   /** Đổi theme: dựng lại style từ style gốc đã có, lớp của kế hoạch tự cài lại. */
   setTheme(dark: boolean): void {
-    if (dark === this.#dark) return
-    this.#dark = dark
-    this.#applyStyle()
+    this.#rm.setTheme(dark)
   }
 
-  #applyStyle(): void {
-    if (this.#removed || !this.#base) return
-    this.#realStyle = true
-    this.#ready = false
-    this.#map.setStyle(reliefStyle(this.#base, { demTiles: DEM_TILES_URL, dark: this.#dark }) as unknown as StyleSpecification, {
-      diff: false,
-    })
-  }
-
-  #onStyle(): void {
-    // Style về SAU khi bản đồ đã bị gỡ (React dựng lại) vẫn bắn sự kiện.
-    if (this.#removed || !this.#realStyle) return
-    clearTimeout(this.#loadTimer)
-    this.#installLayers(PALETTE[this.#dark ? 'dark' : 'light'])
-    const first = !this.#ready
-    this.#ready = true
+  #onStyle(first: boolean): void {
+    this.#installLayers(PALETTE[this.#rm.dark ? 'dark' : 'light'])
     this.#pushAll()
     if (first) this.#h.onReady()
     this.#emitView()

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { meters } from '../../core/format'
+import { meters } from '@/shared/format'
 import { freshPlaces, GEOCODE_MIN_CHARS, matchRecentPlaces } from '../../core/places'
 import { pickerList, resolveCombos, toggleCombo } from '../../core/search'
 import type { PeakCombo, Place, TrailPin } from '../../core/types'

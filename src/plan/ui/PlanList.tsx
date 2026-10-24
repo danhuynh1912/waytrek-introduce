@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { AnimatePresence, motion } from 'motion/react'
-import { distance, fullDate, meters } from '../core/format'
+import { distance, fullDate, meters } from '@/shared/format'
 import { deletePlan, listPlans } from '../data/api'
 import type { PlanSummary } from '../data/api'
 import { newDraftId, readDraft } from '../data/drafts'
@@ -67,11 +67,7 @@ export function PlanList({ session, onLogin }: { session: Session | null; onLogi
       <main className="pl-page">
         <div className="pl-intro">
           <h1>Lên kế hoạch chuyến trek</h1>
-          <p>
-            Chấm điểm trên bản đồ hoặc chọn đỉnh, lán có sẵn. WayTrek tính giờ tới từng điểm theo địa hình, chọn
-            chỗ nghỉ đêm để không phải đi trong tối, và nhắc những thứ cần chuẩn bị.
-          </p>
-          <p className="pl-muted">Kế hoạch lưu vào tài khoản WayTrek và mở được trên app.</p>
+          <p>Từng giờ của chuyến đi, tính trên địa hình thật.</p>
           <div className="pl-intro-actions">
             <button type="button" className="pl-btn pl-btn-primary" onClick={() => open('/plan/new')}>Bắt đầu lên kế hoạch</button>
             <button type="button" className="pl-btn pl-btn-quiet" onClick={onLogin}>Đăng nhập</button>
@@ -104,7 +100,7 @@ export function PlanList({ session, onLogin }: { session: Session | null; onLogi
         </p>
       )}
       {state.kind === 'ready' && state.plans.length === 0 && !unsaved && (
-        <p className="pl-muted pl-empty">Chưa có kế hoạch nào. Bấm "Kế hoạch mới" để bắt đầu.</p>
+        <p className="pl-muted pl-empty">Chưa có kế hoạch nào.</p>
       )}
       {deleteError && <p className="pl-note pl-note-danger">{deleteError}</p>}
 

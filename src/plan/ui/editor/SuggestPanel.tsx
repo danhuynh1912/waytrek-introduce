@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { distance, duration } from '../../core/format'
+import { distance, duration } from '@/shared/format'
 import type { Approach, SuggestOutcome, SuggestTotals } from '../../core/types'
 import { dayNote } from '../../core/warnings'
 import { IRoute } from '../icons'

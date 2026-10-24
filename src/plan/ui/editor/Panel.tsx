@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { distance, duration, meters } from '../../core/format'
+import { distance, duration, meters } from '@/shared/format'
 import type { PlanDoc, PlanResult } from '../../core/types'
 import type { SaveState } from './use-plan-editor'
 import { ClockInput } from './ClockInput'

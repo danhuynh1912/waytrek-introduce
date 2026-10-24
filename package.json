@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test:plan": "deno test --allow-read=. tests/plan/",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:site": "deno test --allow-read=. tests/site/"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.110.7",

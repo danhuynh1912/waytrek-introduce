@@ -2,7 +2,7 @@
 // báo + số liệu); ở đây chỉ quyết nói nó thế nào. Không gộp các cờ thành một
 // con số "an toàn %" — đó đúng là thứ spec đã bỏ.
 
-import { clock, distance, duration, meters } from './format.ts'
+import { clock, distance, duration, meters } from '../../shared/format.ts'
 import type { DayWarning, ResultLeg } from './types.ts'
 
 /** danger: cần ra tay · warn: nên biết · info: nhắc chuẩn bị. */

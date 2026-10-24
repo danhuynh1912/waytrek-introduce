@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent } from 'react'
-import { distance, duration, meters, pace as fmtPace } from '../../core/format'
+import { distance, duration, meters, pace as fmtPace } from '@/shared/format'
 import { eleAt, profileGeometry, stopOffsets } from '../../core/profile'
 import type { PlanResult } from '../../core/types'
 

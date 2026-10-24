@@ -1,8 +1,9 @@
 import { assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts'
 import { editItem, mergeRows, progress, viewChecklist } from '../../src/plan/core/checklist.ts'
 import type { ChecklistRow } from '../../src/plan/core/checklist.ts'
-import { clock, distance, duration, meters, pace, parseClock, shortDate, todayVn } from '../../src/plan/core/format.ts'
-import { fold, searchTrails } from '../../src/plan/core/search.ts'
+import { clock, distance, duration, meters, pace, parseClock, shortDate, todayVn } from '../../src/shared/format.ts'
+import { searchTrails } from '../../src/plan/core/search.ts'
+import { fold } from '../../src/shared/text.ts'
 import type { ResultLeg, TrailPin } from '../../src/plan/core/types.ts'
 import { dayNote, knownNote, legFlagNotes } from '../../src/plan/core/warnings.ts'
 

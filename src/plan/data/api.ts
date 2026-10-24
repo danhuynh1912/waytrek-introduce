@@ -4,8 +4,8 @@
 import type { ChecklistRow } from '../core/checklist'
 import type { SaveOutcome } from '../core/save-queue'
 import type { PeakCombo, Place, PlanDoc, PlanResult, PoiPin, RouteLine, StartTrailhead, SuggestOutcome, TrailPin } from '../core/types'
-import { SUPABASE_ANON_KEY, TRIP_PLAN_URL } from '../config'
-import { supabase } from './supabase'
+import { SUPABASE_ANON_KEY, TRIP_PLAN_URL } from '@/shared/config'
+import { supabase } from '@/shared/supabase'
 
 /** Lỗi đã hiểu được của `trip-plan` / PostgREST, để UI nói đúng chuyện. */
 export class ApiError extends Error {

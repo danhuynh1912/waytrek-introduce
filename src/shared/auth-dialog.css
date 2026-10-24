@@ -1,0 +1,47 @@
+/* Hộp đăng nhập dùng chung (AuthDialog) — chỉ đọc token màu của styles.css. */
+.wt-auth {
+  width: min(400px, calc(100vw - 32px));
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.6);
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+.wt-auth::backdrop { background: rgba(8, 16, 20, 0.45); }
+.wt-auth[open] { animation: wt-auth-in 0.22s var(--ease-inout); }
+@keyframes wt-auth-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.wt-auth-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.wt-auth-head h2 { font-size: 18px; margin: 0; }
+.wt-auth-close {
+  display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 6px; color: var(--text-2);
+  transition: background 0.2s var(--ease-inout), color 0.2s var(--ease-inout);
+}
+.wt-auth-close:hover { background: var(--overlay-10); color: var(--text); }
+.wt-auth-lead { color: var(--text-2); margin: 6px 0 16px; line-height: 1.5; }
+.wt-auth-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; height: 40px; padding: 0 14px; border-radius: 6px;
+  font-weight: 600; font-size: 13.5px;
+  transition: background 0.2s var(--ease-inout), border-color 0.2s var(--ease-inout), opacity 0.2s var(--ease-inout);
+}
+.wt-auth-btn.is-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+.wt-auth-btn.is-outline:hover:not(:disabled) { background: var(--overlay-5); }
+.wt-auth-btn.is-primary { background: var(--teal); color: var(--on-primary); }
+.wt-auth-btn.is-primary:hover:not(:disabled) { background: var(--teal-light); }
+.wt-auth-btn:disabled { opacity: 0.45; cursor: default; }
+.wt-auth-or { display: flex; align-items: center; gap: 10px; margin: 16px 0; color: var(--text-muted); font-size: 12px; }
+.wt-auth-or::before, .wt-auth-or::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.wt-auth-form { display: grid; gap: 10px; }
+.wt-auth-form label { display: grid; gap: 4px; }
+.wt-auth-form label span { font-size: 12px; color: var(--text-muted); }
+.wt-auth-form input {
+  font: inherit; color: var(--text); background: var(--overlay-5);
+  border: 1px solid var(--border); border-radius: 6px; height: 38px; padding: 0 10px; min-width: 0;
+  transition: border-color 0.2s var(--ease-inout);
+}
+.wt-auth-form input:focus { outline: none; border-color: var(--teal); }
+.wt-auth-error { margin: 12px 0 0; font-size: 12.5px; color: var(--red); }
+.wt-auth-foot { margin: 14px 0 0; font-size: 12px; color: var(--text-muted); }

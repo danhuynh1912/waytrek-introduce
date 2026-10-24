@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { ThemeMode } from '@/hooks/useTheme'
-import { avatarUrl, displayName, signOut } from '../data/auth'
+import { avatarUrl, displayName, signOut } from '@/shared/auth'
 import { navigate } from './route'
 
 const Sun = () => (

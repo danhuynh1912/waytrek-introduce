@@ -1,16 +1,16 @@
 import { StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
-import App from './App'
 import { JoinPage } from './components/JoinPage'
 import { inviteCodeFromPath, isInvitePath } from './lib/invite'
 import { PlannerAppLazy } from './plan/lazy'
 import { isPlanPath } from './plan/ui/route'
+import SiteApp from './site/SiteApp'
 import './styles.css'
 
 // /plan…: ứng dụng lên kế hoạch (WayTrek spec/43) — chunk tải lười, kéo theo bản
 // đồ và Supabase; hai trang dưới không phải tải chúng.
-// /j/<mã>: trang lời mời vào đoàn (WayTrek spec/32) — không kéo theo trang
-// giới thiệu nặng ảnh.
+// /j/<mã>: trang lời mời vào đoàn (WayTrek spec/32) — không dựng trang chủ
+// nặng ảnh. Mọi đường dẫn còn lại là waytrek.site (src/site/).
 const path = window.location.pathname
 const isPlan = isPlanPath(path)
 
@@ -23,7 +23,7 @@ createRoot(document.getElementById('root')!).render(
     ) : isInvitePath(path) ? (
       <JoinPage code={inviteCodeFromPath(path)} />
     ) : (
-      <App />
+      <SiteApp />
     )}
   </StrictMode>,
 )

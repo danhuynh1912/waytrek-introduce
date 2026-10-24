@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertNotStrictEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts'
-import { darkPaintFor, RELIEF_HILLSHADE, RELIEF_SOURCE, RELIEF_TINT, reliefStyle } from '../../src/plan/core/relief-style.ts'
+import { darkPaintFor, RELIEF_HILLSHADE, RELIEF_SOURCE, RELIEF_TINT, reliefStyle } from '../../src/shared/map/relief-style.ts'
 
 // Mẩu style Liberty thu gọn — đúng tên lớp, đúng thứ tự như bản tự host.
 const base = () => ({

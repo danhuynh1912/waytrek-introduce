@@ -2,7 +2,7 @@
 // ngay, không tốn lượt tìm của ORS (hạn mức theo ngày). Thuần — chỗ đọc/ghi
 // localStorage nằm ở data/recent-places.ts.
 
-import { fold } from './search.ts'
+import { fold } from '../../shared/text.ts'
 import type { Place } from './types.ts'
 
 export const RECENT_PLACES_MAX = 30

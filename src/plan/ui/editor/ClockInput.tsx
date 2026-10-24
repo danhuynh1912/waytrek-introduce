@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { clock, parseClock } from '../../core/format'
+import { clock, parseClock } from '@/shared/format'
 
 /**
  * Ô giờ (HH:MM) chỉ báo giá trị lúc rời ô / bấm Enter — gõ dở không làm

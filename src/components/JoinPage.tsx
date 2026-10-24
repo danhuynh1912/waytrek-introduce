@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
-import { STORE_URL } from '@/data/screens'
+import { STORE_URL } from '@/shared/links'
 import {
   androidIntent,
-  detectPlatform,
   displayCode,
   iosHandoff,
   playWithReferrer,
   schemeLink,
 } from '@/lib/invite'
+import { detectPlatform } from '@/shared/platform'
 
 // Trang /j/<mã> — chỉ hiện khi link KHÔNG mở được app (chưa cài, hoặc đang ở
 // trình duyệt trong Zalo / Messenger). Luật chữ của WayTrek: câu ngắn, đủ chủ

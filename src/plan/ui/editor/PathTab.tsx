@@ -1,4 +1,4 @@
-import { distance, meters } from '../../core/format'
+import { distance, meters } from '@/shared/format'
 import { pathDetails, wayTypes } from '../../core/path'
 import type { PathKind } from '../../core/path'
 import type { PlanDoc, PlanResult } from '../../core/types'

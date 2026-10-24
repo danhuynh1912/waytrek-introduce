@@ -11,10 +11,40 @@ Trang tĩnh giới thiệu app WayTrek: Vite + React + TypeScript, deploy Vercel
 - `/j/<mã>` là trang lời mời vào đoàn (`src/components/JoinPage.tsx`,
   `src/lib/invite.ts`); hình dạng link do app WayTrek quyết (`WayTrekWeb`,
   `InviteLink` trong `way_trek/lib`), trang này phải khớp.
+- Mọi đường dẫn còn lại là **waytrek.site kiểu komoot** (`src/site/`): trang
+  chủ, `/map` (khám phá mọi cung), `/trail/<id>` (một cung). Hiện nội dung app
+  cho cả người chưa đăng nhập — TRỪ track log; thứ app bắt đăng nhập thì web
+  cũng bắt đăng nhập (hộp chung `src/shared/AuthDialog.tsx`).
+  · **Đường dẫn CHÉP hình dạng deep link của app** (`way_trek/lib/core/deep_link/
+    deep_link_routes.dart`): `trail/<id>?route=`, `map?trail=`, `user/<id>`… — một
+    link mở được cả web lẫn app (`waytrek://<cùng đường dẫn>`). Thêm trang = thêm
+    đúng mẫu của app vào `src/site/core/routes.ts`, đừng đặt tên đường dẫn riêng.
+  · Chỉ đọc dữ liệu CÔNG KHAI bằng khoá anon (RLS + RPC của `waytrek`), qua
+    `src/site/data/catalog.ts`; supabase-js + maplibre tải lười — trang chủ không
+    kéo theo. Đây là ngoại lệ có chủ đích của luật "trang tĩnh, không backend"
+    (chủ sản phẩm 24/10: web phải xem được nội dung app).
+  · Độ khó bày bằng **điểm** của bảng cộng đồng (`get_difficulty_board`, luật
+    hiển thị + màu dải chép từ app ở `src/site/core/difficulty.ts`); nhãn Dễ/Khó
+    chỉ là đường lui khi bảng chưa tải.
+  · Hình học tuyến: LineString lẫn MultiLineString; gộp phẳng chỉ để tính khung
+    nhìn, vẽ thì giữ ranh giới đoạn (`src/site/core/geometry.ts`). Trục quãng
+    đường của biểu đồ độ cao khớp số CÔNG BỐ (`scaleProfile`).
+  · Ảnh / tên / bài của NGƯỜI DÙNG KHÁC chưa có trên web: trang đó (Bảng Vàng,
+    ảnh của cung, người ghi danh) cần một quyết định riêng về lập chỉ mục trước.
+  · Test: `npm run test:site` (deno, `tests/site/`).
+- `src/shared/` — thứ dùng chung của mọi trang: khoá + client Supabase, đăng nhập,
+  định dạng số, bỏ dấu để tìm (`text.ts`), khởi động bản đồ theo theme
+  (`map/relief-map.ts`), bảng màu nét vẽ (`map/ink.ts`). Đừng để trang này import
+  ruột của trang kia — thứ hai trang cùng cần thì chuyển vào đây.
+  · Hoàng Sa, Trường Sa (`map/vn-islands.ts`) do `relief-map.ts` cài cho MỌI bản
+    đồ, trước lớp của trang. Dữ liệu + ba lớp chép từ app
+    (`way_trek/lib/core/data/vn_islands_geojson.dart`,
+    `core/map/vn_islands_layers.dart`) — app là chủ, sửa ở app trước rồi chép.
+    Khung nhìn mở đầu vẫn chỉ ôm đất liền, như app (quyết định 22/9).
 - `/plan` là **ứng dụng lên kế hoạch chuyến trek** (`src/plan/`, thiết kế:
-  `spec/43-trip-planner.md` của repo WayTrek) — phần DUY NHẤT của trang có
-  backend: Supabase (khoá anon công khai) + Edge Function `trip-plan`. Chunk tải
-  lười: `/` và `/j/<mã>` không kéo `maplibre-gl` / `supabase-js` theo.
+  `spec/43-trip-planner.md` của repo WayTrek) — phần DUY NHẤT có tính toán ở
+  máy chủ: Edge Function `trip-plan` (cùng Supabase, khoá anon công khai). Chunk
+  tải lười: `/` và `/j/<mã>` không kéo `maplibre-gl` / `supabase-js` theo.
   · **Luật nằm hết ở máy chủ** (chia ngày, chọn lán, vùng nên nghỉ, mốc bình
     minh, gợi ý thứ tự leo). Web chỉ vẽ `doc` + `result` và gọi `trip-plan` —
     đừng tính lại giờ / cảnh báo ở đây, hai chỗ tính là hai chỗ lệch.
@@ -54,9 +84,10 @@ exception.
 8. **Simple by default (KISS/YAGNI):** Implement the simplest design that
    satisfies current requirements. Do not add speculative features, layers,
    or abstractions.
-   - Ở repo này: trang tĩnh, không backend, không state manager — đừng thêm.
-     Ngoại lệ duy nhất là `/plan` (xem đầu file), và nó cũng không có state
-     manager: trạng thái soạn nằm trong hook `use-plan-editor`.
+   - Ở repo này: không backend riêng, không state manager — đừng thêm. Dữ liệu
+     chỉ đọc qua Supabase (khoá anon) ở `/plan` và `src/site/` (xem đầu file);
+     trạng thái nằm trong hook (`use-plan-editor`, `use-catalog`…), không thư
+     viện quản lý trạng thái, không thư viện định tuyến.
 9. **Testability:** Make business-critical behavior testable. Add or update
    focused tests for changed behavior and relevant edge cases.
 10. **Fail clearly:** Validate untrusted inputs and important preconditions at
