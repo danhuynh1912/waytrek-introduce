@@ -974,7 +974,13 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
     padding: 8px 16px 10px;
     border-bottom: 1px solid var(--border);
     flex: none;
+    /* Kéo tay nắm là kéo TẤM (use-sheet-drag), không phải cuộn trang. */
+    touch-action: none;
+    cursor: grab;
   }
+  /* Khung phủ tới đáy màn, mà thanh công cụ nổi của Safari đè lên đó: chừa chỗ
+     để dòng cuối cuộn lên được trên thanh (ảnh người dùng 25/10). */
+  .pl-panel-body { padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
   .pl-sheet-handle span { width: 36px; height: 4px; border-radius: 2px; background: var(--text-faint); }
   .pl-sheet-handle b { font-size: 13px; font-weight: 600; }
   .pl-toolbar { left: 12px; right: 12px; }

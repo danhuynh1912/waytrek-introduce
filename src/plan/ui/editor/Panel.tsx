@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { distance, duration, meters } from '@/shared/format'
 import type { PlanDoc, PlanResult } from '../../core/types'
 import type { SaveState } from './use-plan-editor'
+import { useSheetDrag } from './use-sheet-drag'
 import { ClockInput } from './ClockInput'
 
 export type PanelTab = 'route' | 'path' | 'prep'
@@ -29,9 +30,11 @@ interface Props {
 
 export function Panel(p: Props) {
   const [open, setOpen] = useState(false)
+  const panelRef = useRef<HTMLElement>(null)
+  const sheet = useSheetDrag(panelRef, open, setOpen)
   return (
-    <aside className={`pl-panel${open ? ' is-open' : ''}`} aria-label="Kế hoạch">
-      <button type="button" className="pl-sheet-handle" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+    <aside ref={panelRef} className={`pl-panel${open ? ' is-open' : ''}`} style={sheet.style} aria-label="Kế hoạch">
+      <button type="button" className="pl-sheet-handle" {...sheet.handleProps} aria-expanded={open}>
         <span />
         <SheetSummary result={p.result} count={p.doc.waypoints.length} />
       </button>

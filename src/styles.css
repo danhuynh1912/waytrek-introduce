@@ -101,6 +101,14 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 :focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; border-radius: 4px; }
 img { max-width: 100%; display: block; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* iOS Safari phóng to cả trang khi chạm vào ô gõ chữ dưới 16 px, rồi không tự thu
+   lại. Trên màn cảm ứng mọi ô gõ ít nhất 16 px — `!important` vì phải thắng cỡ chữ
+   riêng của từng thành phần (ô tìm 14 px, ô sắp xếp 13 px…). Máy tính giữ cỡ cũ. */
+@media (pointer: coarse) {
+  input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit'], [type='reset'], [type='color'], [type='file'], [type='image']),
+  select,
+  textarea { font-size: max(16px, 1em) !important; }
+}
 
 /* ---------- Chuyển động ---------- */
 @media (prefers-reduced-motion: reduce) {

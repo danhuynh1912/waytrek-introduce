@@ -10,6 +10,7 @@ import { detectPlatform } from '@/shared/platform'
 import { formatDifficultyScore } from '../core/difficulty'
 import { bboxOf, profileOf, scaleProfile, segmentsOf, splitByTravel } from '../core/geometry'
 import type { ProfilePoint } from '../core/geometry'
+import { sizedImage } from '../core/images'
 import { appLink, sitePath } from '../core/routes'
 import { difficultyLabel } from '../core/trails'
 import { DifficultyScore } from '../ui/DifficultyScore'
@@ -111,7 +112,7 @@ function TrailView({ d, routeId, dark }: { d: TrailDetail; routeId: string | nul
       </div>
       {t.imageUrl && (
         <div className="st-wrap">
-          <img className="st-trail-hero" src={t.imageUrl} alt={`Phong cảnh ${t.name}`} />
+          <TrailHero url={t.imageUrl} name={t.name} />
         </div>
       )}
       <header className="st-wrap st-trail-head">
@@ -215,6 +216,21 @@ function TrailView({ d, routeId, dark }: { d: TrailDetail; routeId: string | nul
         </aside>
       </div>
     </article>
+  )
+}
+
+/**
+ * Ảnh đầu trang cung: máy tính 21:9 bị chặn cao 460 px trên bề ngang 1180 px,
+ * điện thoại 4:3 (CSS ≤ 640 px) — hai khung khác tỉ lệ nên hai bản cắt.
+ */
+function TrailHero({ url, name }: { url: string; name: string }) {
+  const wide = sizedImage(url, 1180, 460, 75)
+  const phone = sizedImage(url, 360, 270, 75)
+  return (
+    <picture>
+      {phone.srcSet && <source media="(max-width: 640px)" srcSet={phone.srcSet} />}
+      <img className="st-trail-hero" src={wide.src} srcSet={wide.srcSet} alt={`Phong cảnh ${name}`} />
+    </picture>
   )
 }
 

@@ -343,6 +343,7 @@
   animation: st-pop 0.24s var(--ease-inout);
 }
 @keyframes st-pop { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.st-preview-media { display: block; }
 .st-preview-img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; display: block; }
 .st-preview-body { padding: 14px 16px 16px; display: grid; gap: 3px; justify-items: start; }
 .st-preview-name { margin: 0; font-size: 17px; font-weight: 700; }
@@ -354,6 +355,17 @@
   .st-explore-map { height: 52vh; height: 52dvh; position: sticky; top: 64px; z-index: 0; }
   .st-explore-panel { border-right: 0; position: relative; z-index: 1; background: var(--bg); border-top: 1px solid var(--border); }
   .st-explore-list { overflow: visible; }
+  /* Thẻ xem trước DẸT NGANG, ảnh bên trái: thẻ dọc che gần kín bản đồ 52vh (người dùng 25/10). */
+  .st-preview { left: 12px; right: 12px; bottom: 12px; width: auto; }
+  .st-preview.has-img { display: grid; grid-template-columns: 112px minmax(0, 1fr); }
+  .st-preview-media { min-height: 112px; }
+  .st-preview-img { height: 100%; aspect-ratio: auto; }
+  .st-preview-body { padding: 10px 44px 12px 14px; gap: 2px; align-content: center; }
+  .st-preview-name { max-width: 100%; font-size: 15.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .st-preview-region, .st-preview-meta { font-size: 12.5px; }
+  .st-preview-meta { margin-bottom: 8px; }
+  .st-preview .st-btn { height: 32px; padding: 0 12px; font-size: 13px; }
+  .st-preview-close { top: 6px; right: 6px; width: 28px; height: 28px; }
 }
 
 /* ---------- Trang cung (/trail/<id>) ---------- */

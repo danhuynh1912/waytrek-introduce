@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { count } from '@/shared/format'
 import { sitePath } from '../core/routes'
 import type { DifficultyBoard } from '../core/difficulty'
+import { sizedImage } from '../core/images'
 import { DEFAULT_FILTER, filterTrails } from '../core/trails'
 import type { TrailFilter, TrailSort, TrailSummary } from '../core/trails'
 import { navigate } from '../router'
@@ -133,7 +134,7 @@ function TrailRow({ t, board, active, onHover, onSelect }: {
   return (
     <li ref={ref} className={`st-row${active ? ' is-active' : ''}`} onMouseEnter={() => onHover(t.id)} onMouseLeave={() => onHover(null)}>
       <button type="button" className="st-row-link" aria-pressed={active} onClick={() => onSelect(t.id)}>
-        <span className="st-row-img">{t.imageUrl && <img src={t.imageUrl} alt="" loading="lazy" decoding="async" />}</span>
+        <span className="st-row-img">{t.imageUrl && <RowImage url={t.imageUrl} />}</span>
         <span className="st-row-text">
           <b>{t.name}</b>
           {t.region && <span className="st-row-region">{t.region}</span>}
@@ -145,13 +146,34 @@ function TrailRow({ t, board, active, onHover, onSelect }: {
   )
 }
 
+/** Ảnh ô danh sách: 76 × 76 px CSS (`.st-row-img`). */
+function RowImage({ url }: { url: string }) {
+  const img = sizedImage(url, 76, 76)
+  return <img src={img.src} srcSet={img.srcSet} alt="" loading="lazy" decoding="async" />
+}
+
+/**
+ * Ảnh thẻ xem trước: máy tính là dải 16:9 trên đầu thẻ (330 px), điện thoại là
+ * ô vuông bên trái thẻ dẹt (CSS ≤ 900 px) — hai khung khác tỉ lệ nên hai bản cắt.
+ */
+function PreviewImage({ url }: { url: string }) {
+  const wide = sizedImage(url, 330, 186)
+  const square = sizedImage(url, 120, 120)
+  return (
+    <picture className="st-preview-media">
+      {square.srcSet && <source media="(max-width: 900px)" srcSet={square.srcSet} />}
+      <img className="st-preview-img" src={wide.src} srcSet={wide.srcSet} alt="" />
+    </picture>
+  )
+}
+
 function Preview({ t, board, onClose }: { t: TrailSummary; board: DifficultyBoard | null; onClose(): void }) {
   return (
-    <div className="st-preview" key={t.id}>
+    <div className={`st-preview${t.imageUrl ? ' has-img' : ''}`} key={t.id}>
       <button type="button" className="st-preview-close" onClick={onClose} aria-label="Đóng thẻ xem trước">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
       </button>
-      {t.imageUrl && <img className="st-preview-img" src={t.imageUrl} alt="" />}
+      {t.imageUrl && <PreviewImage url={t.imageUrl} />}
       <div className="st-preview-body">
         <p className="st-preview-name">{t.name}</p>
         {t.region && <p className="st-preview-region">{t.region}</p>}

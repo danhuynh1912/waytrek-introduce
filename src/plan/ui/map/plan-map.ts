@@ -616,7 +616,18 @@ export class PlanMap {
     padding: { top: number; right: number; bottom: number; left: number },
     animate = true,
   ): void {
-    this.#map.fitBounds(bounds, { padding, maxZoom: 14, duration: animate ? 600 : 0 })
+    // `flyTo({ padding })` GHI NHỚ phần đệm vào camera, và fitBounds CỘNG đệm của nó
+    // lên trên: sau một lần bay tới điểm, điện thoại có đệm dọc 2 × (70 + 315) px —
+    // quá chiều cao bản đồ, MapLibre bỏ cú ôm và nút "Ôm trọn kế hoạch" như chết
+    // (25/10). Trừ phần đệm camera đang giữ để tổng đúng bằng `padding`.
+    const held = this.#map.getPadding()
+    const extra = {
+      top: Math.max(0, padding.top - (held.top ?? 0)),
+      right: Math.max(0, padding.right - (held.right ?? 0)),
+      bottom: Math.max(0, padding.bottom - (held.bottom ?? 0)),
+      left: Math.max(0, padding.left - (held.left ?? 0)),
+    }
+    this.#map.fitBounds(bounds, { padding: extra, maxZoom: 14, duration: animate ? 600 : 0 })
   }
 
   /** `padding`: phần khung bị panel / dải số liệu che — tâm bay về giữa phần còn thấy. */
