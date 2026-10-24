@@ -6,7 +6,11 @@
 // tương đối kèm đuôi `.ts` để `deno test` chạy thẳng được (tests/plan/).
 
 export type WaypointKind = 'custom' | 'peak' | 'poi' | 'route'
-export type Transport = 'walk' | 'vehicle'
+/**
+ * "auto": máy chủ tự chọn — có lộ trình WayTrek nối hai điểm hoặc hai điểm gần
+ * nhau thì đi bộ, còn lại đi xe theo đường bộ thật rồi đi bộ nốt.
+ */
+export type Transport = 'walk' | 'vehicle' | 'auto'
 
 export interface Waypoint {
   id: string
@@ -36,6 +40,8 @@ export interface PlanDoc {
   /** Giờ khởi hành mỗi ngày, phút kể từ 0h. */
   departMin: number
   autoShift: boolean
+  /** Giờ sớm nhất được tự dời tới (phút). Không có = DEFAULT_EARLIEST_DEPART_MIN. */
+  earliestDepartMin?: number
   pace: number
   restMinPerHour: number
   sunsetMarginMin: number
@@ -45,7 +51,17 @@ export interface PlanDoc {
   noCamp?: true
 }
 
-export type LegFlag = 'unknownPath' | 'partialPath' | 'steep' | 'noElevation'
+export type LegFlag =
+  | 'unknownPath'
+  | 'partialPath'
+  | 'steep'
+  | 'noElevation'
+  /** Có đoạn đi theo lối mòn trên bản đồ OSM (chưa ai đi trong dữ liệu WayTrek). */
+  | 'mappedPath'
+  /** Không tìm được đường xe — đoạn xe đang là đường thẳng ước lượng. */
+  | 'noRoadRoute'
+  /** Có đoạn đi xe ôm theo lộ trình WayTrek (người ghi track đã đi xe ở đó). */
+  | 'motoTaxi'
 
 export interface ResultStop {
   id: string
@@ -69,6 +85,8 @@ export interface ResultStop {
   targetMin: number | null
   /** Có ở điểm nghỉ máy chủ dựng chỗ KHÔNG có lán nào. */
   zone: RestZone | null
+  /** Lán nằm lệch lối: phải rẽ vào khoảng chừng này mét (null = ngay trên lối); bản engine cũ không có. */
+  offTrailM?: number | null
 }
 
 /**
@@ -82,22 +100,33 @@ export interface RestZone {
   fromM: number
   toM: number
   water: boolean
+  /** Mốc đọc được trên núi: điểm dừng phía trước vùng (hoặc "chỗ xuống xe"); bản engine cũ không có. */
+  refName?: string
+  refFromM?: number
+  refToM?: number
 }
 
 export interface DrawPiece {
-  kind: 'route' | 'straight' | 'vehicle'
+  /** route: lộ trình WayTrek · path: lối mòn OSM · straight: chưa có lối · vehicle: đường xe. */
+  kind: 'route' | 'path' | 'straight' | 'vehicle'
   /** Polyline mã hoá, độ chính xác 5, thứ tự [lat, lon]. */
   line: string
+  /** Đoạn vehicle này là xe ôm theo lộ trình WayTrek (không phải ô tô trên đường bộ). */
+  moto?: true
 }
 
 export interface ResultLeg {
   from: string
   to: string
-  transport: Transport
+  /** Đã giải (không bao giờ là "auto"): có đoạn xe nào thì là "vehicle". */
+  transport: Exclude<Transport, 'auto'>
   distanceM: number
   ascentM: number
   descentM: number
+  /** Phút đi bộ + phút trên xe (không gồm nghỉ ngắn). */
   moveMin: number
+  /** Phần trên xe của moveMin. */
+  driveMin: number
   knownPct: number
   unknownM: number
   flags: LegFlag[]
@@ -215,6 +244,14 @@ export interface TrailPin {
   peakEleM: number | null
 }
 
+/** Combo đỉnh hay leo cùng chuyến (admin quản lý, bảng planner_combos). */
+export interface PeakCombo {
+  id: string
+  name: string
+  /** Thứ tự leo gợi ý. */
+  trailIds: string[]
+}
+
 export interface PoiPin {
   poiId: string
   trailId: string
@@ -232,4 +269,15 @@ export interface RouteLine {
   routeName: string | null
   /** Từng đoạn GPX: [[lonE6, latE6], …]. */
   segments: [number, number][][]
+}
+
+/** Chân núi máy chủ chọn cho đỉnh ở điểm đầu (`action: "trailhead"`). */
+export interface StartTrailhead {
+  latE6: number
+  lonE6: number
+  name: string
+  eleM: number | null
+  routeName: string | null
+  /** Phút từ chân lên đỉnh (gồm nghỉ ngắn). */
+  upMin: number
 }

@@ -22,7 +22,19 @@ Deno.test('ngày ngắn tính thẳng từ chuỗi, không qua múi giờ máy',
 
 const leg = (p: Partial<ResultLeg>): ResultLeg => ({
   from: 'a', to: 'b', transport: 'walk', distanceM: 2000, ascentM: 0, descentM: 0, moveMin: 30,
-  knownPct: 100, unknownM: 0, flags: [], draw: [], ...p,
+  driveMin: 0, knownPct: 100, unknownM: 0, flags: [], draw: [], ...p,
+})
+
+Deno.test('lối mòn OSM là vàng, không phải đỏ; thiếu đường xe thì nói ra', () => {
+  assertEquals(knownNote(leg({ knownPct: 0, flags: ['mappedPath'] })), {
+    level: 'warn',
+    text: 'Đi theo lối mòn trên bản đồ OpenStreetMap — chưa ai đi trong dữ liệu WayTrek',
+  })
+  assertEquals(knownNote(leg({ knownPct: 0, unknownM: 300, flags: ['mappedPath'] }))?.level, 'warn')
+  assertEquals(knownNote(leg({ knownPct: 0, flags: ['unknownPath', 'mappedPath'] }))?.level, 'danger')
+  // Chặng xe có đoạn đi bộ nốt trên lối mòn: vẫn nói về phần đi bộ đó.
+  assertEquals(knownNote(leg({ transport: 'vehicle', knownPct: 0, flags: ['mappedPath'] }))?.level, 'warn')
+  assertEquals(legFlagNotes(leg({ transport: 'vehicle', flags: ['noRoadRoute'] })).map((n) => n.level), ['warn'])
 })
 
 Deno.test('mức đường đã biết theo đúng ba ngưỡng của spec', () => {

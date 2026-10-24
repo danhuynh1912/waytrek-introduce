@@ -2,15 +2,23 @@
 // quên lời hứa đã hỏng để lần sau gọi lại được, không giữ lỗi đầu tiên mãi.
 
 import { useCallback, useEffect, useState } from 'react'
-import type { PoiPin, TrailPin } from '../../core/types'
-import { fetchPois, fetchTrails } from '../../data/api'
+import type { PeakCombo, PoiPin, TrailPin } from '../../core/types'
+import { fetchCombos, fetchPois, fetchTrails } from '../../data/api'
 
 let trailsP: Promise<TrailPin[]> | null = null
 let poisP: Promise<PoiPin[]> | null = null
+let combosP: Promise<PeakCombo[]> | null = null
 
-export function useCatalog(): { trails: TrailPin[]; pois: PoiPin[]; error: string | null; retry: () => void } {
+export function useCatalog(): {
+  trails: TrailPin[]
+  pois: PoiPin[]
+  combos: PeakCombo[]
+  error: string | null
+  retry: () => void
+} {
   const [trails, setTrails] = useState<TrailPin[]>([])
   const [pois, setPois] = useState<PoiPin[]>([])
+  const [combos, setCombos] = useState<PeakCombo[]>([])
   const [error, setError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
 
@@ -22,6 +30,11 @@ export function useCatalog(): { trails: TrailPin[]; pois: PoiPin[]; error: strin
       trailsP = null
       console.warn('plan: tải đỉnh lỗi —', e)
       if (alive) setError('Không tải được danh sách đỉnh và lán.')
+    })
+    // Combo chỉ là gợi ý: hỏng thì hộp Tìm thiếu dòng combo, không báo lỗi to.
+    ;(combosP ??= fetchCombos()).then((v) => alive && setCombos(v)).catch((e) => {
+      combosP = null
+      console.warn('plan: tải combo đỉnh lỗi —', e)
     })
     p.then((v) => alive && setPois(v)).catch((e) => {
       poisP = null
@@ -37,5 +50,5 @@ export function useCatalog(): { trails: TrailPin[]; pois: PoiPin[]; error: strin
     setError(null)
     setAttempt((a) => a + 1)
   }, [])
-  return { trails, pois, error, retry }
+  return { trails, pois, combos, error, retry }
 }

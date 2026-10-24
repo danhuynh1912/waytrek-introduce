@@ -64,14 +64,37 @@ export function dayNote(w: DayWarning, nameOf: (id: string) => string | undefine
 
 /** Mức "đường đã biết" của một chặng đi bộ (spec/43 §6.1). */
 export function knownNote(leg: ResultLeg): Note | null {
-  if (leg.transport === 'vehicle') return null
+  if (leg.transport === 'vehicle' && !leg.flags.includes('mappedPath') && leg.unknownM === 0) return null
   if (leg.knownPct >= 90) return { level: 'info', text: 'Có lối đã biết' }
-  if (leg.knownPct >= 50) return { level: 'warn', text: `${distance(leg.unknownM)} chưa có lối đã biết` }
+  // Lối mòn OSM: có lối trên bản đồ nhưng chưa ai đi trong dữ liệu WayTrek.
+  if (leg.flags.includes('unknownPath')) {
+    return {
+      level: 'danger',
+      text: `${distance(leg.unknownM)} không có lối nào trên bản đồ — nét kẻ thẳng chỉ để ước giờ, không phải đường đi. Đừng đi theo nó.`,
+    }
+  }
+  if (leg.flags.includes('mappedPath')) {
+    return {
+      level: 'warn',
+      text: leg.unknownM > 0
+        ? `Đi theo lối mòn trên bản đồ OpenStreetMap, ${distance(leg.unknownM)} không có lối nào — hỏi người địa phương trước khi đi`
+        : 'Đi theo lối mòn trên bản đồ OpenStreetMap — chưa ai đi trong dữ liệu WayTrek',
+    }
+  }
+  if (leg.knownPct >= 50 || leg.flags.includes('partialPath')) {
+    return { level: 'warn', text: `${distance(leg.unknownM)} chưa có lối đã biết` }
+  }
   return { level: 'danger', text: 'Phần lớn đoạn này chưa ai đi qua trong dữ liệu của WayTrek' }
 }
 
 export function legFlagNotes(leg: ResultLeg): Note[] {
   const out: Note[] = []
+  if (leg.flags.includes('noRoadRoute')) {
+    out.push({ level: 'warn', text: 'Chưa tìm được đường xe — giờ đi xe đang ước theo đường chim bay' })
+  }
+  if (leg.flags.includes('motoTaxi')) {
+    out.push({ level: 'info', text: 'Có đoạn đi xe ôm theo lộ trình — người đi trước đã đi xe máy ở đoạn này' })
+  }
   if (leg.flags.includes('steep')) out.push({ level: 'warn', text: 'Có đoạn dốc trên 35%' })
   if (leg.flags.includes('noElevation')) {
     out.push({ level: 'warn', text: 'Thiếu dữ liệu độ cao — giờ đi đã cộng thêm 30%' })

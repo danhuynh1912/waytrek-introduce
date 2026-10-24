@@ -11,6 +11,7 @@ import {
   moveWaypoint,
   nextPointName,
   patchSettings,
+  prependStart,
   relocateWaypoint,
   removeWaypoint,
   returnToStart,
@@ -23,11 +24,11 @@ import { progress } from '../../core/checklist'
 import { decodePolyline } from '../../core/polyline'
 import { pointAlong } from '../../core/profile'
 import { buildTimeline, drawLines } from '../../core/timeline'
-import type { PlanDoc, ResultStop, TrailPin } from '../../core/types'
-import { fetchRoutesInBbox } from '../../data/api'
+import type { PlanDoc, ResultStop, TrailPin, Waypoint } from '../../core/types'
+import { fetchRoutesInBbox, fetchSnap, fetchStartTrailhead } from '../../data/api'
 import type { Bbox } from '../../data/api'
 import type { AuthRequest } from '../AuthDialog'
-import { IFit, IMinus, IPlus, IReturn } from '../icons'
+import { IFit, ILocate, IMinus, IPlus, IReturn } from '../icons'
 import type { LatLng, LayerKey, MapAuto, MapWaypoint, PlanMapHandlers, Snapped } from '../map/plan-map'
 import { navigate, replaceSilently } from '../route'
 import { Checklist } from './Checklist'
@@ -35,11 +36,16 @@ import { MapView } from './MapView'
 import type { MapApi } from './MapView'
 import { Panel } from './Panel'
 import { StatsBar } from './StatsBar'
+import { SearchDialog } from './SearchDialog'
+import { StartPeakDialog } from './StartPeakDialog'
+import type { StartPeakAsk } from './StartPeakDialog'
 import { SuggestPanel } from './SuggestPanel'
 import { Timeline } from './Timeline'
 import type { TimelineActions } from './Timeline'
 import { Toolbar } from './Toolbar'
 import { useCatalog } from './use-catalog'
+import { CoachMark } from './CoachMark'
+import { useGuide } from './use-guide'
 import { usePlanEditor } from './use-plan-editor'
 
 const REASON_TEXT: Record<string, string> = {
@@ -51,6 +57,8 @@ const REASON_TEXT: Record<string, string> = {
 /** Lộ trình các cung chỉ tải khi đã phóng gần — máy chủ từ chối khung rộng hơn 3°. */
 const ROUTES_MIN_ZOOM = 9
 const rid = () => Math.random().toString(36).slice(2, 7)
+/** Lối đi gần hơn chừng này thì để nguyên chỗ chấm — dời vài mét chỉ làm điểm nhảy. */
+const SNAP_MIN_M = 15
 
 function fitPadding() {
   const narrow = window.innerWidth < 760
@@ -71,18 +79,25 @@ export function PlanEditorScreen({
   requestLogin: (r: AuthRequest) => void
 }) {
   const ed = usePlanEditor({ routeId, session, onSaved: (id) => replaceSilently(`/plan/${id}`) })
-  const { trails, pois, error: catalogError, retry: retryCatalog } = useCatalog()
+  const { trails, pois, combos, error: catalogError, retry: retryCatalog } = useCatalog()
   const mapApi = useRef<MapApi | null>(null)
   const [layers, setLayers] = useState<Record<LayerKey, boolean>>({ routes: true, pois: true, peaks: true, terrain: true })
   const [tab, setTab] = useState<'route' | 'prep'>('route')
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [toast, setToast] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ text: string; action?: { label: string; run(): void } } | null>(null)
+  const [startAsk, setStartAsk] = useState<StartPeakAsk | null>(null)
+  const [searchOpen, setSearchOpen] = useState(false)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const guide = useGuide()
+  // Hướng dẫn hiện ở cùng khoảng trên cùng với thông báo nhanh, và thường nói
+  // cùng một ý — đang có hướng dẫn thì không vẽ thông báo.
+  const shownToast = guide.current ? null : toast
 
-  const say = useCallback((text: string) => {
-    setToast(text)
+  // Thông báo nhanh; có `action` thì kèm một nút (đứng lâu hơn để kịp bấm).
+  const say = useCallback((text: string, action?: { label: string; run(): void }) => {
+    setToast({ text, action })
     if (toastTimer.current) clearTimeout(toastTimer.current)
-    toastTimer.current = setTimeout(() => setToast(null), 3500)
+    toastTimer.current = setTimeout(() => setToast(null), action ? 8000 : 3500)
   }, [])
 
   const { edit } = ed
@@ -127,38 +142,103 @@ export function PlanEditorScreen({
   )
 
   // ─── Sửa kế hoạch ───────────────────────────────────────────────────────
+  /**
+   * Điểm chấm tay không nằm trên lộ trình WayTrek: hỏi máy chủ lối đi (đường /
+   * lối mòn OSM) gần nhất, rồi dời điểm ra đó — chấm giữa rừng thì không có
+   * đường thật nào tới. Điểm hiện ngay ở chỗ chấm; chỉ dời nếu người dùng chưa
+   * kéo nó đi chỗ khác trong lúc chờ.
+   */
+  const snapToPath = useCallback(
+    (id: string, at: LatLng) => {
+      fetchSnap(at)
+        .then((s) => {
+          if (!s || s.distM < SNAP_MIN_M) return
+          const e6 = (x: number) => Math.round(x * 1e6)
+          const moved = apply((doc) => {
+            const w = doc.waypoints.find((x) => x.id === id)
+            if (!w || w.latE6 !== e6(at.lat) || w.lonE6 !== e6(at.lng)) return doc
+            return relocateWaypoint(doc, id, { lat: s.lat, lon: s.lng, kind: 'custom' })
+          })
+          if (moved) say(`Đã dời điểm ra lối đi gần nhất (cách chỗ chấm ${Math.round(s.distM)} m).`)
+        })
+        .catch((e) => console.warn('plan: tìm lối đi gần nhất lỗi —', e))
+    },
+    [apply, say],
+  )
+
   const addPoint = useCallback(
-    (at: LatLng, snapped: Snapped | null) =>
-      apply((doc) =>
-        appendWaypoint(
+    (at: LatLng, snapped: Snapped | null) => {
+      let id: string | null = null
+      const ok = apply((doc) => {
+        id = freshWaypointId(doc, rid)
+        return appendWaypoint(
           doc,
           makeWaypoint({
-            id: freshWaypointId(doc, rid),
+            id,
             kind: snapped ? 'route' : 'custom',
             ref: snapped?.trailId,
             lat: snapped?.lat ?? at.lat,
             lon: snapped?.lng ?? at.lng,
             name: nextPointName(doc),
           }),
-        ),
-      ),
-    [apply],
+        )
+      })
+      if (ok && !snapped && id) snapToPath(id, at)
+    },
+    [apply, snapToPath],
   )
 
-  const addPeak = useCallback(
-    (t: TrailPin) => {
-      if (!t.hasPeak) {
-        mapApi.current?.flyTo(t, 12.5, fitPadding())
+  /**
+   * Thêm một hoặc nhiều đỉnh (hộp Tìm chọn nhiều, combo) trong MỘT lượt sửa —
+   * hoàn tác một lần là bỏ cả nhóm. Kế hoạch đang trống thì hỏi chỗ xuất phát
+   * cho đỉnh đầu tiên, như khi thêm một đỉnh.
+   */
+  const addPeaks = useCallback(
+    (ts: TrailPin[]) => {
+      const peaks = ts.filter((t) => t.hasPeak)
+      if (peaks.length === 0) {
+        if (ts[0]) mapApi.current?.flyTo(ts[0], 12.5, fitPadding())
         return
       }
       const first = ed.doc.waypoints.length === 0
-      const ok = apply((doc) =>
-        appendWaypoint(doc, makeWaypoint({ id: freshWaypointId(doc, rid), kind: 'peak', ref: t.trailId, lat: t.lat, lon: t.lng, name: t.name })),
-      )
-      if (ok && first) mapApi.current?.flyTo(t, 12.5, fitPadding())
+      let firstWp: Waypoint | null = null
+      const ok = apply((doc) => {
+        let cur = doc
+        for (const t of peaks) {
+          const wp = makeWaypoint({ id: freshWaypointId(cur, rid), kind: 'peak', ref: t.trailId, lat: t.lat, lon: t.lng, name: t.name })
+          firstWp ??= wp
+          const r = appendWaypoint(cur, wp)
+          if (!r.ok) return r
+          cur = r.doc
+        }
+        return cur
+      })
+      if (!ok || !firstWp) return
+      if (peaks.length === 1) mapApi.current?.flyTo(peaks[0], 12.5, fitPadding())
+      else mapApi.current?.fit(peaks.map((t) => ({ lat: t.lat, lng: t.lng })), fitPadding())
+      if (!first) return
+      // Đỉnh làm điểm đầu: hỏi có thật xuất phát trên đỉnh, hay để máy chọn chân núi.
+      const p: Waypoint = firstWp
+      const t = peaks[0]
+      const settingsDoc = ed.doc
+      setStartAsk({
+        peakName: t.name,
+        find: () => fetchStartTrailhead({ ...settingsDoc, waypoints: [p] }),
+        apply: (th) => {
+          const placed = apply((doc) =>
+            doc.waypoints[0]?.id === p.id
+              ? prependStart(doc, freshWaypointId(doc, rid), { ...th, trailId: t.trailId })
+              : { ok: false, reason: 'missing' },
+          )
+          if (placed) {
+            mapApi.current?.fit([{ lat: th.latE6 / 1e6, lng: th.lonE6 / 1e6 }, ...peaks.map((x) => ({ lat: x.lat, lng: x.lng }))], fitPadding())
+          }
+        },
+      })
     },
-    [apply, ed.doc.waypoints.length],
+    [apply, ed.doc],
   )
+  const addPeak = useCallback((t: TrailPin) => addPeaks([t]), [addPeaks])
 
   const autoById = useCallback(
     (id: string) => draw.autos.find((a) => a.stop.id === id) ?? null,
@@ -173,10 +253,20 @@ export function PlanEditorScreen({
   // — mọi vùng khác cũng thôi, ngày quá dài quay về cảnh báo.
   const dismissAuto = useCallback(
     (stop: ResultStop) => {
-      if (stop.zone) apply((doc) => patchSettings(doc, { camp: false }))
-      else if (stop.poiId) apply((doc) => dismissAutoStop(doc, stop.poiId!))
+      if (stop.zone) {
+        apply((doc) => patchSettings(doc, { camp: false }))
+        // Bật lại nằm sâu trong Cài đặt — đưa nút ra ngay lúc vừa tắt.
+        say('Đã bỏ mọi vùng nên nghỉ — đoàn không mang lều.', {
+          label: 'Mang lều',
+          run: () => {
+            apply((doc) => patchSettings(doc, { camp: true }))
+            setToast(null)
+          },
+        })
+        guide.fire('campOff')
+      } else if (stop.poiId) apply((doc) => dismissAutoStop(doc, stop.poiId!))
     },
-    [apply],
+    [apply, say, guide],
   )
 
   // ─── Lộ trình các cung trong khung nhìn ─────────────────────────────────
@@ -204,15 +294,17 @@ export function PlanEditorScreen({
       apply((doc) =>
         appendWaypoint(doc, makeWaypoint({ id: freshWaypointId(doc, rid), kind: 'poi', ref: p.poiId, lat: p.lat, lon: p.lng, name: p.name })),
       ),
-    onWaypointMoved: (id, at, snapped) =>
-      apply((doc) =>
+    onWaypointMoved: (id, at, snapped) => {
+      const ok = apply((doc) =>
         relocateWaypoint(doc, id, {
           lat: snapped?.lat ?? at.lat,
           lon: snapped?.lng ?? at.lng,
           kind: snapped ? 'route' : 'custom',
           ref: snapped?.trailId,
         }),
-      ),
+      )
+      if (ok && !snapped) snapToPath(id, at)
+    },
     onWaypointRemove: (id) => apply((doc) => removeWaypoint(doc, id)),
     onWaypointToggleRest: (id) =>
       apply((doc) => updateWaypoint(doc, id, { rest: !doc.waypoints.find((w) => w.id === id)?.rest })),
@@ -240,6 +332,34 @@ export function PlanEditorScreen({
   }
 
   const settings = (p: SettingsPatch) => apply((doc) => patchSettings(doc, p))
+
+  // ─── Về vị trí của tôi ──────────────────────────────────────────────────
+  // Chỉ hỏi vị trí khi người dùng bấm nút — không xin quyền lúc mở trang.
+  const [locating, setLocating] = useState(false)
+  const locate = () => {
+    if (!('geolocation' in navigator)) {
+      say('Trình duyệt này không cho lấy vị trí.')
+      return
+    }
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocating(false)
+        const at = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        mapApi.current?.setMe(at)
+        mapApi.current?.flyTo(at, 13, fitPadding())
+      },
+      (err) => {
+        setLocating(false)
+        say(
+          err.code === err.PERMISSION_DENIED
+            ? 'Chưa được phép lấy vị trí — bật quyền vị trí cho trang này trong trình duyệt.'
+            : 'Không lấy được vị trí. Thử lại sau giây lát.',
+        )
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    )
+  }
 
   // ─── Ôm trọn kế hoạch lúc mở ────────────────────────────────────────────
   const fitPlan = useCallback(() => {
@@ -369,21 +489,17 @@ export function PlanEditorScreen({
         computing={ed.computing || ed.load.kind === 'loading' || ed.save.kind === 'saving'}
         computeError={ed.computeError}
         save={ed.save}
-        trails={trails}
         tab={tab}
         prepCount={prepCount}
         onTab={setTab}
         onTitle={(v) => settings({ title: v })}
         onDate={(v) => settings({ startDate: v })}
         onDepart={(m) => settings({ departMin: m })}
-        onAutoShift={(v) => settings({ autoShift: v })}
         onRetryCompute={ed.retryCompute}
         onRetrySave={save}
         onConflict={ed.resolveConflict}
         onSaveAsNew={ed.saveAsNew}
         onLogin={() => requestLogin({ reason: 'Đăng nhập lại để lưu thay đổi.' })}
-        onPickTrail={(t) => mapApi.current?.flyTo(t, 12.5, fitPadding())}
-        onAddPeak={addPeak}
       >
         {ed.load.kind === 'loading' ? (
           <p className="pl-muted pl-pad">Đang mở kế hoạch…</p>
@@ -449,11 +565,13 @@ export function PlanEditorScreen({
         onSave={save}
         settingsOpen={settingsOpen}
         onSettingsOpen={setSettingsOpen}
+        onSearch={() => setSearchOpen(true)}
       />
       <div className="pl-controls">
         <button type="button" className="pl-ctrl" onClick={() => mapApi.current?.zoomBy(1)} aria-label="Phóng to"><IPlus /></button>
         <button type="button" className="pl-ctrl" onClick={() => mapApi.current?.zoomBy(-1)} aria-label="Thu nhỏ"><IMinus /></button>
         <button type="button" className="pl-ctrl" onClick={fitPlan} disabled={count === 0} aria-label="Ôm trọn kế hoạch" title="Ôm trọn kế hoạch"><IFit /></button>
+        <button type="button" className="pl-ctrl" onClick={locate} disabled={locating} aria-label="Về vị trí của tôi" title="Về vị trí của tôi"><ILocate /></button>
       </div>
       <StatsBar
         result={ed.result}
@@ -462,7 +580,22 @@ export function PlanEditorScreen({
         onPace={() => setSettingsOpen(true)}
         onHover={onHover}
       />
-      <div className={`pl-toast${toast ? ' is-on' : ''}`} role="status" aria-live="polite">{toast}</div>
+      <CoachMark guide={guide.current} onClose={guide.dismiss} />
+      <div className={`pl-toast${shownToast ? ' is-on' : ''}${shownToast?.action ? ' has-action' : ''}`} role="status" aria-live="polite">
+        {shownToast?.text}
+        {shownToast?.action && (
+          <button type="button" className="pl-toast-action" onClick={shownToast.action.run}>{shownToast.action.label}</button>
+        )}
+      </div>
+      <StartPeakDialog ask={startAsk} onClose={() => setStartAsk(null)} />
+      <SearchDialog
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        trails={trails}
+        combos={combos}
+        onPick={(t) => mapApi.current?.flyTo(t, 12.5, fitPadding())}
+        onAddPeaks={addPeaks}
+      />
     </div>
   )
 }

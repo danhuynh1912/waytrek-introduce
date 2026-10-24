@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import type { KeyboardEvent, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { clock, distance, duration, meters, parseClock } from '../../core/format'
-import { searchTrails } from '../../core/search'
-import type { PlanDoc, PlanResult, TrailPin } from '../../core/types'
-import { IPeak, ISearch } from '../icons'
+import type { PlanDoc, PlanResult } from '../../core/types'
 import type { SaveState } from './use-plan-editor'
 
 interface Props {
@@ -12,21 +10,17 @@ interface Props {
   computing: boolean
   computeError: string | null
   save: SaveState
-  trails: TrailPin[]
   tab: 'route' | 'prep'
   prepCount: { done: number; total: number }
   onTab(t: 'route' | 'prep'): void
   onTitle(v: string): void
   onDate(v: string): void
   onDepart(min: number): void
-  onAutoShift(v: boolean): void
   onRetryCompute(): void
   onRetrySave(): void
   onConflict(pick: 'mine' | 'theirs'): void
   onSaveAsNew(): void
   onLogin(): void
-  onPickTrail(t: TrailPin): void
-  onAddPeak(t: TrailPin): void
   children: ReactNode
 }
 
@@ -48,11 +42,6 @@ export function Panel(p: Props) {
           </label>
           <TimeField value={p.doc.departMin} onCommit={p.onDepart} />
         </div>
-        <label className="pl-check">
-          <input type="checkbox" checked={p.doc.autoShift} onChange={(e) => p.onAutoShift(e.target.checked)} />
-          <span>Tự dời giờ đi sớm hơn khi cần để kịp trước tối</span>
-        </label>
-        <TrailSearch trails={p.trails} onPick={p.onPickTrail} onAddPeak={p.onAddPeak} />
       </div>
       <StatusLines {...p} />
       <div className="pl-tabs" role="tablist">
@@ -131,65 +120,6 @@ function TimeField({ value, onCommit }: { value: number; onCommit(min: number): 
         onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
       />
     </label>
-  )
-}
-
-function TrailSearch({ trails, onPick, onAddPeak }: { trails: TrailPin[]; onPick(t: TrailPin): void; onAddPeak(t: TrailPin): void }) {
-  const [q, setQ] = useState('')
-  const [active, setActive] = useState(0)
-  const hits = searchTrails(trails, q)
-  const pick = (t: TrailPin) => {
-    onPick(t)
-    setQ('')
-  }
-  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      setActive((a) => Math.min(hits.length - 1, a + 1))
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      setActive((a) => Math.max(0, a - 1))
-    } else if (e.key === 'Enter' && hits[active]) {
-      e.preventDefault()
-      pick(hits[active])
-    } else if (e.key === 'Escape') setQ('')
-  }
-  return (
-    <div className="pl-search">
-      <ISearch size={16} />
-      <input
-        value={q}
-        placeholder="Tìm đỉnh, cung… (gõ không dấu cũng được)"
-        aria-label="Tìm đỉnh"
-        onChange={(e) => {
-          setQ(e.target.value)
-          setActive(0)
-        }}
-        onKeyDown={onKey}
-      />
-      <ul className={`pl-search-hits${hits.length ? ' is-open' : ''}`} role="listbox">
-        {hits.map((t, i) => (
-          <li key={t.trailId} role="option" aria-selected={i === active} className={i === active ? 'is-active' : ''}>
-            <button type="button" className="pl-hit" onMouseEnter={() => setActive(i)} onClick={() => pick(t)}>
-              <span className="pl-hit-name">{t.name}</span>
-              <span className="pl-muted">{[t.region, t.peakEleM ? meters(t.peakEleM) : null].filter(Boolean).join(' · ')}</span>
-            </button>
-            {t.hasPeak && (
-              <button
-                type="button"
-                className="pl-btn pl-btn-quiet sm"
-                onClick={() => {
-                  onAddPeak(t)
-                  setQ('')
-                }}
-              >
-                <IPeak size={14} /> Thêm đỉnh
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
-    </div>
   )
 }
 

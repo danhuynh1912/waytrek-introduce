@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import type { DrawLine } from '../../core/timeline'
 import type { PoiPin, RouteLine, TrailPin } from '../../core/types'
-import { PlanMap } from '../map/plan-map'
+import { PlanMap, planLineColors } from '../map/plan-map'
 import type { LatLng, LayerKey, MapAuto, MapWaypoint, PlanMapHandlers } from '../map/plan-map'
 
 type Padding = { top: number; right: number; bottom: number; left: number }
@@ -12,6 +12,7 @@ export interface MapApi {
   flyTo(at: LatLng, zoom: number, padding: Padding): void
   zoomBy(delta: number): void
   setHover(p: LatLng | null): void
+  setMe(p: LatLng | null): void
   addRoutes(routes: RouteLine[]): void
 }
 
@@ -75,6 +76,7 @@ export function MapView({ apiRef, dark, initialFit, trails, pois, lines, waypoin
       flyTo: (at, zoom, padding) => m.flyTo(at, zoom, padding),
       zoomBy: (d) => m.zoomBy(d),
       setHover: (p) => m.setHover(p),
+      setMe: (p) => m.setMe(p),
       addRoutes: (r) => m.addRoutes(r),
     }
     const onResize = () => m.resize()
@@ -106,9 +108,27 @@ export function MapView({ apiRef, dark, initialFit, trails, pois, lines, waypoin
     for (const k of Object.keys(layers) as LayerKey[]) map.current?.setLayer(k, layers[k])
   }, [layers])
 
+  const hasWalk = lines.some((l) => l.kind === 'route' || l.kind === 'path')
+  const hasVehicle = lines.some((l) => l.kind === 'vehicle')
+  const colors = planLineColors(dark)
+
   return (
     <div className="pl-map-wrap">
       <div ref={box} className="pl-map" />
+      <ul className={`pl-legend${hasWalk || hasVehicle ? ' is-on' : ''}`} aria-label="Chú thích nét">
+        {hasVehicle && (
+          <li>
+            <i style={{ background: colors.vehicle }} />
+            Đi phương tiện
+          </li>
+        )}
+        {hasWalk && (
+          <li>
+            <i style={{ background: colors.walk }} />
+            Đi bộ
+          </li>
+        )}
+      </ul>
       {fatal && (
         <div className="pl-map-fatal" role="alert">
           {fatal} <button type="button" className="pl-text-btn" onClick={() => window.location.reload()}>Tải lại</button>

@@ -6,7 +6,7 @@
 // cách đi tới vẫn y như lúc tính. Đoạn đã đổi thì là "đang tính" — vẽ đường
 // thẳng mờ, không bịa giờ.
 
-import type { PlanDoc, PlanResult, ResultDay, ResultLeg, ResultStop, Waypoint } from './types.ts'
+import type { PlanDoc, PlanResult, ResultDay, ResultLeg, ResultStop, Waypoint, DrawPiece } from './types.ts'
 
 export interface Segment {
   /** Lán tự chèn nằm giữa hai điểm, theo thứ tự đi. */
@@ -113,13 +113,15 @@ export function buildTimeline(
   return { rows, pending }
 }
 
-export type DrawKind = 'route' | 'straight' | 'vehicle' | 'pending'
+export type DrawKind = DrawPiece['kind'] | 'pending'
 
 export interface DrawLine {
   kind: DrawKind
   /** Polyline mã hoá (kind khác 'pending'), hoặc hai đầu mút [lon, lat]. */
   encoded: string | null
   ends: [[number, number], [number, number]] | null
+  /** Đoạn xe ôm theo lộ trình WayTrek — bản đồ ghi nhãn "Xe ôm". */
+  moto?: true
 }
 
 /** Nét vẽ trên bản đồ theo cùng luật mượn đoạn với panel. */
@@ -145,7 +147,9 @@ export function drawLines(
       continue
     }
     for (const leg of seg.legs) {
-      for (const piece of leg.draw) lines.push({ kind: piece.kind, encoded: piece.line, ends: null })
+      for (const piece of leg.draw) {
+        lines.push({ kind: piece.kind, encoded: piece.line, ends: null, ...(piece.moto ? { moto: true as const } : {}) })
+      }
     }
     for (const stop of seg.autos) autos.push({ stop, afterWaypointId: a.id })
   }

@@ -53,7 +53,8 @@ export function makeWaypoint(w: WaypointInput): Waypoint {
     lonE6: Math.round(w.lon * 1e6),
     name: w.name.trim().slice(0, 120) || 'Điểm',
     rest: w.rest ?? false,
-    transport: w.transport ?? 'walk',
+    // Điểm mới để máy chủ tự chọn đi bộ hay đi xe (theo lộ trình và khoảng cách).
+    transport: w.transport ?? 'auto',
   }
   if (w.ref) out.ref = w.ref
   return out
@@ -79,6 +80,26 @@ function insertAt(doc: PlanDoc, index: number, wp: Waypoint): EditResult {
   const list = [...doc.waypoints]
   list.splice(index, 0, wp)
   return { ok: true, doc: undismiss(withWaypoints(doc, list), wp) }
+}
+
+/**
+ * Chân núi máy chủ chọn cho đỉnh đang đứng đầu: chèn lên TRƯỚC đỉnh, làm điểm
+ * xuất phát. Bản làng dưới chân núi — nghỉ đêm được nếu ngày cần cắt.
+ */
+export function prependStart(
+  doc: PlanDoc,
+  id: string,
+  t: { latE6: number; lonE6: number; name: string; trailId?: string },
+): EditResult {
+  const wp = makeWaypoint({
+    id,
+    kind: 'route',
+    ref: t.trailId,
+    lat: t.latE6 / 1e6,
+    lon: t.lonE6 / 1e6,
+    name: t.name,
+  })
+  return insertAt(doc, 0, { ...wp, restOk: true })
 }
 
 /** Điểm mới nối vào CUỐI (thứ tự đi — spec/43 §3.2). */
@@ -157,8 +178,8 @@ export function keepAutoStop(
     doc,
     i + 1,
     stop.poiId
-      ? makeWaypoint({ id: newId, kind: 'poi', ref: stop.poiId, name: stop.name, ...at })
-      : makeWaypoint({ id: newId, kind: 'custom', name: CAMP_NAME, ...at }),
+      ? makeWaypoint({ id: newId, kind: 'poi', ref: stop.poiId, name: stop.name, transport: 'walk', ...at })
+      : makeWaypoint({ id: newId, kind: 'custom', name: CAMP_NAME, transport: 'walk', ...at }),
   )
 }
 
@@ -206,7 +227,7 @@ export function returnToStart(doc: PlanDoc, newId: string): EditResult {
     id: newId,
     name: `Về ${first.name}`.slice(0, 120),
     rest: false,
-    transport: 'walk',
+    transport: 'auto',
   })
 }
 
@@ -218,11 +239,15 @@ export function endsAtStart(doc: PlanDoc): boolean {
   return Math.abs(a.latE6 - b.latE6) < 200 && Math.abs(a.lonE6 - b.lonE6) < 200
 }
 
+/** Giờ sớm nhất mặc định (04:30) — chép từ DEFAULTS.earliestDepartMin của engine. */
+export const DEFAULT_EARLIEST_DEPART_MIN = 4 * 60 + 30
+
 export interface SettingsPatch {
   title?: string
   startDate?: string
   departMin?: number
   autoShift?: boolean
+  earliestDepartMin?: number
   pace?: number
   restMinPerHour?: number
   sunsetMarginMin?: number
@@ -251,6 +276,12 @@ export function patchSettings(doc: PlanDoc, p: SettingsPatch): PlanDoc {
     next.departMin = clamp(Math.round(p.departMin), 0, 24 * 60 - 1)
   }
   if (p.autoShift !== undefined) next.autoShift = p.autoShift
+  // Chỉ ghi khi khác mặc định — cùng luật với máy chủ (validate.ts), giữ băm.
+  if (p.earliestDepartMin !== undefined && Number.isFinite(p.earliestDepartMin)) {
+    const v = clamp(Math.round(p.earliestDepartMin), 0, 12 * 60)
+    if (v === DEFAULT_EARLIEST_DEPART_MIN) delete next.earliestDepartMin
+    else next.earliestDepartMin = v
+  }
   if (p.pace !== undefined && Number.isFinite(p.pace)) {
     next.pace = Math.round(clamp(p.pace, PACE_MIN, PACE_MAX) * 100) / 100
   }

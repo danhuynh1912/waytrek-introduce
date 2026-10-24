@@ -3,7 +3,7 @@
 
 import type { ChecklistRow } from '../core/checklist'
 import type { SaveOutcome } from '../core/save-queue'
-import type { PlanDoc, PlanResult, PoiPin, RouteLine, SuggestOutcome, TrailPin } from '../core/types'
+import type { PeakCombo, PlanDoc, PlanResult, PoiPin, RouteLine, StartTrailhead, SuggestOutcome, TrailPin } from '../core/types'
 import { SUPABASE_ANON_KEY, TRIP_PLAN_URL } from '../config'
 import { supabase } from './supabase'
 
@@ -86,6 +86,27 @@ export async function suggestPlan(doc: PlanDoc, signal?: AbortSignal): Promise<S
   throw errorOf(status, json)
 }
 
+/**
+ * Chân núi để xuất phát khi điểm đầu của `doc` là một đỉnh: chân lên đỉnh nhanh
+ * nhất theo lộ trình WayTrek. null = đỉnh chưa có lộ trình nào.
+ */
+export async function fetchStartTrailhead(doc: PlanDoc, signal?: AbortSignal): Promise<StartTrailhead | null> {
+  const { status, json } = await callTripPlan({ action: 'trailhead', doc }, signal)
+  if (status === 200 && 'trailhead' in json) return (json.trailhead as StartTrailhead | null) ?? null
+  throw errorOf(status, json)
+}
+
+/**
+ * Lối đi (đường / lối mòn OSM) gần nhất trong 500 m quanh một điểm chấm tay.
+ * null = không có lối nào đủ gần — giữ nguyên chỗ chấm.
+ */
+export async function fetchSnap(at: { lat: number; lng: number }, signal?: AbortSignal): Promise<{ lat: number; lng: number; distM: number } | null> {
+  const { status, json } = await callTripPlan({ action: 'snap', lat: at.lat, lon: at.lng }, signal)
+  if (status !== 200) throw errorOf(status, json)
+  const s = json.snap as { lat: number; lon: number; distM: number } | null
+  return s ? { lat: s.lat, lng: s.lon, distM: s.distM } : null
+}
+
 /** Tính + lưu. Máy chủ tự xác thực người dùng từ phiên; không gửi user id. */
 export async function savePlan(planId: string, doc: PlanDoc, baseVersion: number): Promise<SaveOutcome> {
   let r: { status: number; json: Record<string, unknown> }
@@ -132,6 +153,19 @@ export async function fetchTrails(): Promise<TrailPin[]> {
     hasPeak: r.has_peak,
     peakEleM: r.peak_ele_m,
   }))
+}
+
+interface ComboRow {
+  id: string
+  name: string
+  trail_ids: string[]
+}
+
+/** Combo đỉnh gợi ý (bảng planner_combos, admin quản lý). */
+export async function fetchCombos(): Promise<PeakCombo[]> {
+  const { data, error } = await supabase.rpc('planner_combos').abortSignal(timeoutSignal(READ_TIMEOUT_MS))
+  if (error) throw new ApiError(0, 'READ_FAILED', `planner_combos: ${error.message}`)
+  return (data as ComboRow[]).map((r) => ({ id: r.id, name: r.name, trailIds: r.trail_ids ?? [] }))
 }
 
 interface PoiRow {

@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { PACE_DEFAULT, PACE_MAX, PACE_MIN, PACE_SLOW_GROUP } from '../../core/doc'
-import { pace as fmtPace } from '../../core/format'
+import { DEFAULT_EARLIEST_DEPART_MIN, PACE_DEFAULT, PACE_MAX, PACE_MIN, PACE_SLOW_GROUP } from '../../core/doc'
+import type { SettingsPatch } from '../../core/doc'
+import { clock, parseClock, pace as fmtPace } from '../../core/format'
 import type { PlanDoc } from '../../core/types'
-import { ICheck, ILayers, IRedo, ISliders, IUndo } from '../icons'
+import { ICheck, ILayers, IRedo, ISearch, ISliders, IUndo } from '../icons'
 import type { LayerKey } from '../map/plan-map'
+import type { GuideAnchor } from '../../core/guides'
 import type { SaveState } from './use-plan-editor'
 
 interface Props {
@@ -15,13 +17,14 @@ interface Props {
   onRedo(): void
   layers: Record<LayerKey, boolean>
   onLayer(k: LayerKey, on: boolean): void
-  onSettings(p: { pace?: number; restMinPerHour?: number; sunsetMarginMin?: number; autoShift?: boolean; camp?: boolean }): void
+  onSettings(p: SettingsPatch): void
   save: SaveState
   saved: boolean
   canSave: boolean
   onSave(): void
   settingsOpen: boolean
   onSettingsOpen(open: boolean): void
+  onSearch(): void
 }
 
 const LAYER_LABELS: [LayerKey, string][] = [
@@ -50,9 +53,12 @@ export function Toolbar(p: Props) {
             </label>
           ))}
         </Dropdown>
-        <Dropdown label="Cài đặt" icon={<ISliders />} open={p.settingsOpen} onOpen={p.onSettingsOpen}>
+        <Dropdown label="Cài đặt" icon={<ISliders />} open={p.settingsOpen} onOpen={p.onSettingsOpen} guide="settings">
           <Settings doc={p.doc} onChange={p.onSettings} />
         </Dropdown>
+        <button type="button" className="pl-tool" onClick={p.onSearch} title="Tìm đỉnh, cung">
+          <ISearch /> <span>Tìm</span>
+        </button>
       </div>
       <SaveButton {...p} />
     </div>
@@ -92,13 +98,15 @@ function SaveButton({ save, saved, canSave, onSave }: Props) {
 }
 
 function Dropdown({
-  label, icon, children, open: openProp, onOpen,
+  label, icon, children, open: openProp, onOpen, guide,
 }: {
   label: string
   icon: ReactNode
   children: ReactNode
   open?: boolean
   onOpen?: (open: boolean) => void
+  /** Mốc cho hướng dẫn lần đầu (core/guides). */
+  guide?: GuideAnchor
 }) {
   const [own, setOwn] = useState(false)
   const open = openProp ?? own
@@ -119,7 +127,13 @@ function Dropdown({
   }, [open, setOpen])
   return (
     <div className="pl-dd" ref={box}>
-      <button type="button" className={`pl-tool wide${open ? ' is-on' : ''}`} onClick={() => setOpen(!open)} aria-expanded={open}>
+      <button
+        type="button"
+        className={`pl-tool wide${open ? ' is-on' : ''}`}
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        data-guide-anchor={guide}
+      >
         {icon}
         <span>{label}</span>
       </button>
@@ -189,13 +203,41 @@ function Settings({ doc, onChange }: { doc: PlanDoc; onChange: Props['onSettings
       />
       <label className="pl-check">
         <input type="checkbox" checked={doc.autoShift} onChange={(e) => onChange({ autoShift: e.target.checked })} />
-        <span>Tự dời giờ đi sớm hơn khi cần (sớm nhất 04:30)</span>
+        <span>Tự dời giờ đi sớm hơn khi cần</span>
       </label>
+      {doc.autoShift && (
+        <EarliestField
+          value={doc.earliestDepartMin ?? DEFAULT_EARLIEST_DEPART_MIN}
+          onCommit={(v) => onChange({ earliestDepartMin: v })}
+        />
+      )}
       <label className="pl-check">
         <input type="checkbox" checked={!doc.noCamp} onChange={(e) => onChange({ camp: e.target.checked })} />
         <span>Có mang lều — chỗ không có lán thì gợi ý vùng nên nghỉ để cắm trại</span>
       </label>
     </div>
+  )
+}
+
+/** Giờ sớm nhất được tự dời tới — nhiều đoàn đi từ 2 giờ sáng. */
+function EarliestField({ value, onCommit }: { value: number; onCommit(v: number): void }) {
+  const [text, setText] = useState<string | null>(null)
+  const commit = () => {
+    const m = text == null ? null : parseClock(text)
+    if (m != null && m !== value) onCommit(m)
+    setText(null)
+  }
+  return (
+    <label className="pl-field-head pl-indent">
+      <span>Sớm nhất lúc</span>
+      <input
+        type="time"
+        value={text ?? clock(value)}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+      />
+    </label>
   )
 }
 

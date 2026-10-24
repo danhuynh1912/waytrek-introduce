@@ -11,6 +11,7 @@ import {
   newDoc,
   nextPointName,
   patchSettings,
+  prependStart,
   relocateWaypoint,
   removeWaypoint,
   returnToStart,
@@ -42,7 +43,7 @@ Deno.test('kế hoạch mới mang đúng mặc định của máy chủ', () =>
 
 Deno.test('makeWaypoint làm tròn toạ độ về E6 và cắt tên', () => {
   const w = makeWaypoint({ id: 'a', kind: 'custom', lat: 22.5299754, lon: 103.6583216, name: '  Bãi xe  ' })
-  assertEquals([w.latE6, w.lonE6, w.name, w.rest, w.transport], [22529975, 103658322, 'Bãi xe', false, 'walk'])
+  assertEquals([w.latE6, w.lonE6, w.name, w.rest, w.transport], [22529975, 103658322, 'Bãi xe', false, 'auto'])
   assertEquals('ref' in w, false)
 })
 
@@ -205,4 +206,26 @@ Deno.test('nút gợi ý thứ tự leo: cần điểm xuất phát ở đầu v
   assertEquals(suggestReadiness(doc(pt('home'), peak('p1', 't1'), peak('p2', 't1'))), null)
   assertEquals(suggestReadiness(doc(pt('home'), peak('p1', 't1'), peak('p2', 't2'))), 'ready')
   assertEquals(suggestReadiness(doc(peak('p1', 't1'), peak('p2', 't2'), pt('home'))), 'needStart')
+})
+
+Deno.test('chân núi máy chủ chọn được chèn lên TRƯỚC đỉnh, nghỉ đêm được', () => {
+  const peak = makeWaypoint({ id: 'p', kind: 'peak', ref: 'trail-1', lat: 22.5, lon: 103.6, name: 'Đỉnh' })
+  const r = prependStart({ ...newDoc('2026-12-21'), waypoints: [peak] }, 's', {
+    latE6: 22529975,
+    lonE6: 103658322,
+    name: 'Chân Đỉnh',
+    trailId: 'trail-1',
+  })
+  assert(r.ok)
+  const [start, second] = r.doc.waypoints
+  assertEquals([start.id, start.kind, start.ref, start.restOk, start.name], ['s', 'route', 'trail-1', true, 'Chân Đỉnh'])
+  assertEquals(second.id, 'p')
+})
+
+Deno.test('giờ sớm nhất: đặt 02:00 thì ghi, đặt lại 04:30 thì xoá trường (giữ băm doc cũ)', () => {
+  const d = newDoc('2026-11-02')
+  const early = patchSettings(d, { earliestDepartMin: 120 })
+  assertEquals(early.earliestDepartMin, 120)
+  assertEquals('earliestDepartMin' in patchSettings(early, { earliestDepartMin: 270 }), false)
+  assertEquals(patchSettings(d, { earliestDepartMin: 2000 }).earliestDepartMin, 720)
 })

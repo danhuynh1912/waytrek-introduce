@@ -57,13 +57,7 @@ function rowKey(r: Row, i: number, rows: Row[]): string {
 }
 
 export function Timeline({ rows, count, fresh, computeError, trails, pois, actions }: Props) {
-  if (count === 0) {
-    return (
-      <div className="pl-empty-plan">
-        <p>Bấm lên bản đồ để đặt điểm xuất phát, hoặc tìm một đỉnh ở ô phía trên.</p>
-      </div>
-    )
-  }
+  if (count === 0) return null
   // Tên + số liệu của mọi điểm, để dòng ngày nói đúng tên điểm nó nhắc tới.
   const stops = new Map<string, { name: string; info: ResultStop | null }>()
   for (const r of rows) {
@@ -121,8 +115,49 @@ function DayRow({ day, stops }: { day: ResultDay; stops: ReadonlyMap<string, { n
           Xuất phát {clock(day.departMin)} để tới <b>{anchor.name}</b> lúc {clock(anchor.info.targetMin)}
         </div>
       )}
-      <Notes notes={notes} />
+      <DayNotes notes={notes} />
     </section>
+  )
+}
+
+/**
+ * Cảnh báo của một ngày — gập sẵn (chủ sản phẩm 24/10), chỉ còn một dòng tóm
+ * tắt mang màu của mức nặng nhất. Bấm để mở / gập.
+ */
+function DayNotes({ notes }: { notes: Note[] }) {
+  const [open, setOpen] = useState(false)
+  if (notes.length === 0) return null
+  const worst = notes[0].level // đã sắp theo byLevel: nặng nhất đứng đầu
+  const warns = notes.filter((n) => n.level !== 'info').length
+  const infos = notes.length - warns
+  const summary = [warns > 0 ? `${warns} cảnh báo` : null, infos > 0 ? `${infos} lưu ý` : null].filter(Boolean).join(' · ')
+  return (
+    <div className="pl-day-notes">
+      <button
+        type="button"
+        className={`pl-day-notes-toggle pl-note-${worst}`}
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        {worst === 'info' ? <IInfo size={15} /> : <IWarn size={15} />}
+        <span>{summary}</span>
+        <span className={`pl-day-notes-chev${open ? ' is-open' : ''}`}><IDown size={14} /></span>
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            key="notes"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.24, ease: 'easeInOut' }}
+            style={{ overflow: 'hidden' }}
+          >
+            <Notes notes={notes} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }
 
@@ -303,7 +338,9 @@ function AutoRow({ stop, afterWaypointId, actions }: { stop: ResultStop; afterWa
           <span className="pl-eta">{clock(stop.etaMin)}</span>
         </div>
         <div className="pl-stop-sub">
-          Lán{stop.eleM != null && <> · {meters(stop.eleM)}</>} · nghỉ đêm để kịp tới trước tối
+          Lán{stop.poiId?.startsWith('osm:') ? ' (OpenStreetMap)' : ''}
+          {stop.eleM != null && <> · {meters(stop.eleM)}</>}
+          {stop.offTrailM != null && <> · rẽ khỏi lối ~{meters(stop.offTrailM)}</>} · nghỉ đêm để kịp tới trước tối
         </div>
         <div className="pl-auto-actions">
           <button type="button" className="pl-btn pl-btn-quiet sm" onClick={() => actions.keepAuto(stop, afterWaypointId)}>Giữ</button>
@@ -332,7 +369,10 @@ function ZoneRow({ stop, afterWaypointId, actions }: { stop: ResultStop; afterWa
           <span className="pl-eta">{clock(stop.etaMin)}</span>
         </div>
         <div className="pl-stop-sub">
-          Chưa có lán · km {km(z.fromM)}–{km(z.toM)}
+          Chưa có lán ·{' '}
+          {z.refName != null && z.refFromM != null && z.refToM != null
+            ? `cách ${z.refName} ${km(z.refFromM)}–${km(z.refToM)} km`
+            : `km ${km(z.fromM)}–${km(z.toM)}`}
           {stop.eleM != null && <> · {meters(stop.eleM)}</>}
           {' · '}
           {z.water ? 'có nguồn nước đã biết' : 'chưa thấy nguồn nước — mang đủ nước'}
@@ -368,7 +408,9 @@ function LegRow({
             {distance(leg.distanceM)}
             {!vehicle && <> · ↑ {meters(leg.ascentM)} ↓ {meters(leg.descentM)}</>}
             {' · '}
-            {vehicle ? `đi xe ${duration(leg.moveMin)}` : duration(leg.moveMin)}
+            {vehicle
+              ? `đi xe ${duration(leg.driveMin)}${leg.moveMin - leg.driveMin >= 5 ? ` + đi bộ ${duration(leg.moveMin - leg.driveMin)}` : ''}`
+              : duration(leg.moveMin)}
             {known?.level === 'info' && <span className="pl-muted"> · {known.text.toLowerCase()}</span>}
           </div>
         ) : (
@@ -376,26 +418,45 @@ function LegRow({
         )}
         <Notes notes={notes} />
         {toggleFor && (
-          <div className={`pl-seg${toggleFor.transport === 'vehicle' ? ' is-vehicle' : ''}`} role="group" aria-label="Cách đi đoạn này">
-            <button
-              type="button"
-              className={toggleFor.transport === 'walk' ? 'is-on' : ''}
-              aria-pressed={toggleFor.transport === 'walk'}
-              onClick={() => actions.setTransport(toggleFor.id, 'walk')}
-            >
-              <IWalk size={14} /> Đi bộ
-            </button>
-            <button
-              type="button"
-              className={toggleFor.transport === 'vehicle' ? 'is-on' : ''}
-              aria-pressed={toggleFor.transport === 'vehicle'}
-              onClick={() => actions.setTransport(toggleFor.id, 'vehicle')}
-            >
-              <ICar size={14} /> Đi xe
-            </button>
-          </div>
+          <TransportToggle wp={toggleFor} resolved={leg?.transport ?? null} actions={actions} />
         )}
       </div>
+    </div>
+  )
+}
+
+/**
+ * "auto": nút sáng theo cách máy chủ đã chọn, kèm chữ "tự chọn". Bấm một nút là
+ * người dùng quyết — từ đó máy chủ không đổi nữa.
+ */
+function TransportToggle({
+  wp, resolved, actions,
+}: {
+  wp: Waypoint
+  resolved: 'walk' | 'vehicle' | null
+  actions: TimelineActions
+}) {
+  const auto = wp.transport === 'auto'
+  const on = auto ? resolved : wp.transport
+  return (
+    <div className={`pl-seg${on === 'vehicle' ? ' is-vehicle' : ''}`} role="group" aria-label="Cách đi đoạn này">
+      <button
+        type="button"
+        className={on === 'walk' ? 'is-on' : ''}
+        aria-pressed={!auto && on === 'walk'}
+        onClick={() => actions.setTransport(wp.id, 'walk')}
+      >
+        <IWalk size={14} /> Đi bộ
+      </button>
+      <button
+        type="button"
+        className={on === 'vehicle' ? 'is-on' : ''}
+        aria-pressed={!auto && on === 'vehicle'}
+        onClick={() => actions.setTransport(wp.id, 'vehicle')}
+      >
+        <ICar size={14} /> Đi xe
+      </button>
+      {auto && <span className="pl-seg-auto">tự chọn</span>}
     </div>
   )
 }

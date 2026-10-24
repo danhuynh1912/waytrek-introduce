@@ -26,10 +26,8 @@ interface Props {
  * khi đã có điểm xuất phát; thẻ kết quả chỉ hiện sau khi bấm.
  */
 export function SuggestPanel({ readiness, state, onSuggest, onApply, onDismiss }: Props) {
-  if (readiness == null) return null
-  if (readiness === 'needStart') {
-    return <p className="pl-suggest-hint pl-muted">Đặt điểm xuất phát (chỗ ở, bến xe…) lên đầu danh sách để được gợi ý thứ tự leo.</p>
-  }
+  // Chưa có điểm xuất phát thì không hiện gì (chủ sản phẩm 24/10: bỏ dòng nhắc).
+  if (readiness == null || readiness === 'needStart') return null
   const open = state.kind === 'ready' || state.kind === 'error'
   return (
     <div className="pl-suggest">

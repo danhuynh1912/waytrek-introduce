@@ -18,6 +18,8 @@ import { DEM_TILES_URL, MAP_STYLE_URL } from '../../config'
 import { decodePolyline } from '../../core/polyline'
 import { RELIEF_HILLSHADE, RELIEF_TINT, reliefStyle } from '../../core/relief-style'
 import { nearestOnLines, SNAP_PX } from '../../core/snap'
+import { mergeRoutes } from '../../core/route-merge'
+import type { MergedLine } from '../../core/route-merge'
 import type { DrawLine } from '../../core/timeline'
 import type { PoiPin, RouteLine, TrailPin } from '../../core/types'
 import type { Bbox } from '../../data/api'
@@ -93,6 +95,15 @@ interface Palette {
   zoneOpacity: number
 }
 
+/** Màu nét kế hoạch cho chú thích ngoài bản đồ — cùng bảng màu với nét vẽ. */
+export function planLineColors(dark: boolean): { walk: string; vehicle: string } {
+  const C = PALETTE[dark ? 'dark' : 'light']
+  return { walk: C.route, vehicle: C.vehicle }
+}
+
+/** Nhãn "Xe ôm" chỉ hiện từ mức phóng này (nhìn xa, đoạn xe ôm chỉ vài pixel). */
+const MOTO_MIN_ZOOM = 11
+
 const PALETTE: Record<'light' | 'dark', Palette> = {
   light: {
     route: '#2F677A',
@@ -100,7 +111,7 @@ const PALETTE: Record<'light' | 'dark', Palette> = {
     straight: '#B4690E',
     vehicle: '#E8821E',
     pending: '#6B7C85',
-    catalog: '#5BA3B8',
+    catalog: '#7A6E58',
     catalogOpacity: 0.85,
     peak: '#12222B',
     peakStroke: '#FFFFFF',
@@ -120,8 +131,8 @@ const PALETTE: Record<'light' | 'dark', Palette> = {
     straight: '#F5D77A',
     vehicle: '#E8821E',
     pending: '#8E918A',
-    catalog: '#5BA3B8',
-    catalogOpacity: 0.55,
+    catalog: '#B3AC98',
+    catalogOpacity: 0.75,
     peak: '#E6E8E3',
     peakStroke: '#0B0C0B',
     label: '#D4D7CF',
@@ -164,8 +175,11 @@ export class PlanMap {
   #trails: TrailPin[] = []
   #pois: PoiPin[] = []
   #routes = new Map<string, RouteLine>()
+  /** Nét đang vẽ (đã gộp) — chấm điểm bám đúng nét người dùng nhìn thấy. */
+  #merged: MergedLine[] = []
   #lines: DrawLine[] = []
   #hover: LatLng | null = null
+  #me: LatLng | null = null
   #visible: Record<LayerKey, boolean> = { routes: true, pois: true, peaks: true, terrain: true }
   #wps = new Map<string, { marker: Marker; data: MapWaypoint }>()
   #autos = new Map<string, { marker: Marker; data: MapAuto }>()
@@ -183,7 +197,8 @@ export class PlanMap {
       style: placeholder(dark),
       center: VIETNAM.center,
       zoom: VIETNAM.zoom,
-      attributionControl: { compact: true },
+      // Đường xe / lối mòn của kế hoạch do OpenRouteService (HeiGIT) tìm — điều kiện dùng gói miễn phí.
+      attributionControl: { compact: true, customAttribution: 'Tìm đường © <a href="https://openrouteservice.org/" target="_blank" rel="noopener">openrouteservice.org</a> by HeiGIT' },
       dragRotate: false,
       pitchWithRotate: false,
       touchPitch: false,
@@ -266,8 +281,15 @@ export class PlanMap {
       source: 'wt-routes',
       layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: {
+        // Lộ trình người dùng WayTrek đã đi: nét liền màu đất, không trùng màu
+        // nét kế hoạch; đường mòn của bản đồ nền là chấm nhỏ, sẫm.
         'line-color': C.catalog,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 9, 1.5, 14, 3],
+        // Nét đông người đi (nhiều lộ trình gộp lại) dày hơn, tới gấp đôi.
+        'line-width': [
+          'interpolate', ['linear'], ['zoom'],
+          9, ['*', 1.5, ['min', 2, ['+', 1, ['*', 0.25, ['-', ['get', 'heat'], 1]]]]],
+          14, ['*', 3, ['min', 2, ['+', 1, ['*', 0.25, ['-', ['get', 'heat'], 1]]]]],
+        ],
         'line-opacity': C.catalogOpacity,
       },
     })
@@ -310,9 +332,46 @@ export class PlanMap {
         },
       })
     planLine('wt-plan-route', 'route', C.route, 4.5)
+    // Lối mòn OSM: nét liền cùng màu đi bộ, mảnh hơn lộ trình WayTrek.
+    planLine('wt-plan-path', 'path', C.route, 3.5)
     planLine('wt-plan-straight', 'straight', C.straight, 4, [1.4, 1.1])
-    planLine('wt-plan-vehicle', 'vehicle', C.vehicle, 4, [2.2, 1.2])
+    // Đường xe: nét liền màu cam — đúng màu phương tiện của app WayTrek.
+    planLine('wt-plan-vehicle', 'vehicle', C.vehicle, 4)
     planLine('wt-plan-pending', 'pending', C.pending, 3, [1, 1.4])
+    // Đoạn xe ôm theo lộ trình WayTrek: nét cam như mọi đoạn xe, thêm một
+    // tooltip trắng có đuôi chỉ xuống, đứng PHÍA TRÊN điểm giữa đoạn — không đè
+    // lên nét. Chỉ hiện từ MOTO_MIN_ZOOM: nhìn xa thì đoạn xe ôm chỉ là vài
+    // pixel, nhãn che mất tên đỉnh (chủ sản phẩm 24/10).
+    if (!m.hasImage('wt-moto-tip')) {
+      const tip = tooltipImage()
+      if (tip) {
+        m.addImage('wt-moto-tip', tip, {
+          pixelRatio: 2,
+          stretchX: [[14, 26], [38, 50]],
+          stretchY: [[16, 20]],
+          content: [14, 6, 50, 32],
+        })
+      }
+    }
+    m.addSource('wt-moto', { type: 'geojson', data: empty() })
+    m.addLayer({
+      id: 'wt-moto-badge',
+      type: 'symbol',
+      source: 'wt-moto',
+      minzoom: MOTO_MIN_ZOOM,
+      layout: {
+        'icon-image': 'wt-moto-tip',
+        'icon-text-fit': 'both',
+        'text-field': 'Xe ôm',
+        'text-font': ['Noto Sans Bold'],
+        'text-size': 12,
+        'text-anchor': 'bottom',
+        'text-offset': [0, -1.05],
+        'icon-allow-overlap': true,
+        'text-allow-overlap': true,
+      },
+      paint: { 'text-color': '#12222B' },
+    })
 
     m.addSource('wt-pois', { type: 'geojson', data: empty() })
     m.addLayer({
@@ -322,7 +381,7 @@ export class PlanMap {
       minzoom: 9,
       paint: {
         'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 3.5, 14, 6],
-        'circle-color': ['match', ['get', 'kind'], ['shelter', 'camp'], C.shelter, 'water', C.water, C.other],
+        'circle-color': ['match', ['get', 'kind'], 'shelter', C.shelter, 'water', C.water, C.other],
         'circle-stroke-color': C.poiStroke,
         'circle-stroke-width': 1.5,
       },
@@ -370,6 +429,15 @@ export class PlanMap {
         'text-optional': true,
       },
       paint: { 'text-color': C.label, 'text-halo-color': C.halo, 'text-halo-width': 1.6 },
+    })
+
+    // Vị trí người dùng (nút "về vị trí của tôi"): chấm xanh, vòng trắng.
+    m.addSource('wt-me', { type: 'geojson', data: empty() })
+    m.addLayer({
+      id: 'wt-me-dot',
+      type: 'circle',
+      source: 'wt-me',
+      paint: { 'circle-radius': 7, 'circle-color': '#2B7BB9', 'circle-stroke-color': '#FFFFFF', 'circle-stroke-width': 2.5 },
     })
 
     m.addSource('wt-hover', { type: 'geojson', data: empty() })
@@ -430,6 +498,14 @@ export class PlanMap {
     })
   }
 
+  setMe(p: LatLng | null): void {
+    this.#me = p
+    this.#push('wt-me', {
+      type: 'FeatureCollection',
+      features: p ? [{ type: 'Feature', geometry: { type: 'Point', coordinates: [p.lng, p.lat] }, properties: {} }] : [],
+    })
+  }
+
   setLayer(key: LayerKey, on: boolean): void {
     this.#visible[key] = on
     if (!this.#ready) return
@@ -444,27 +520,34 @@ export class PlanMap {
   }
 
   #pushRoutes(): void {
-    const features: Feature[] = []
-    for (const r of this.#routes.values()) {
-      for (const seg of r.segments) {
-        if (seg.length < 2) continue
-        features.push({
-          type: 'Feature',
-          geometry: { type: 'LineString', coordinates: seg.map(([lon, lat]) => [lon / 1e6, lat / 1e6]) },
-          properties: { routeId: r.routeId, trailId: r.trailId, trailName: r.trailName },
-        })
-      }
-    }
+    // Lộ trình chồng nhau gộp về một nét (core/route-merge); nét giữ routeId
+    // của lộ trình nó lấy hình học, nên #snapAt vẫn chấm đúng lên nét đã vẽ.
+    this.#merged = mergeRoutes([...this.#routes.values()])
+    const features: Feature[] = this.#merged.map((l) => ({
+      type: 'Feature',
+      geometry: { type: 'LineString', coordinates: l.coords },
+      properties: { routeId: l.routeId, trailId: l.trailId, trailName: l.trailName, heat: l.heat },
+    }))
     this.#push('wt-routes', { type: 'FeatureCollection', features })
   }
 
   #pushPlan(): void {
+    this.#push('wt-moto', {
+      type: 'FeatureCollection',
+      features: this.#lines
+        .filter((l) => l.moto && l.encoded)
+        .map((l) => ({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: midpoint(decodePolyline(l.encoded!)) },
+          properties: {},
+        })),
+    })
     this.#push('wt-plan', {
       type: 'FeatureCollection',
       features: this.#lines.map((l) => ({
         type: 'Feature',
         geometry: { type: 'LineString', coordinates: l.encoded ? decodePolyline(l.encoded) : (l.ends ?? []) },
-        properties: { kind: l.kind },
+        properties: { kind: l.kind, moto: l.moto === true },
       })),
     })
   }
@@ -487,6 +570,7 @@ export class PlanMap {
     this.#pushZones()
     this.#pushPlan()
     this.setHover(this.#hover)
+    this.setMe(this.#me)
     for (const k of Object.keys(this.#visible) as LayerKey[]) this.setLayer(k, this.#visible[k])
   }
 
@@ -627,24 +711,21 @@ export class PlanMap {
       [[p.x - r, p.y - r], [p.x + r, p.y + r]],
       { layers: ['wt-routes-line'] },
     )
-    const ids = [...new Set(near.map((f) => String(f.properties.routeId)))]
+    const ids = new Set(near.map((f) => String(f.properties.routeId)))
     const lines: { x: number; y: number }[][] = []
-    const owners: { route: RouteLine; seg: [number, number][] }[] = []
-    for (const id of ids) {
-      const route = this.#routes.get(id)
-      if (!route) continue
-      for (const seg of route.segments) {
-        lines.push(seg.map(([lon, lat]) => this.#map.project([lon / 1e6, lat / 1e6])))
-        owners.push({ route, seg })
-      }
+    const owners: MergedLine[] = []
+    for (const l of this.#merged) {
+      if (!ids.has(l.routeId)) continue
+      lines.push(l.coords.map(([lon, lat]) => this.#map.project([lon, lat])))
+      owners.push(l)
     }
     const hit = nearestOnLines(p, lines, r)
     if (!hit) return null
     const a = lines[hit.line][hit.edge]
     const b = lines[hit.line][hit.edge + 1]
     const ll = this.#map.unproject([a.x + (b.x - a.x) * hit.t, a.y + (b.y - a.y) * hit.t])
-    const { route } = owners[hit.line]
-    return { lat: ll.lat, lng: ll.lng, trailId: route.trailId, trailName: route.trailName }
+    const own = owners[hit.line]
+    return { lat: ll.lat, lng: ll.lng, trailId: own.trailId, trailName: own.trailName }
   }
 
   // ─── Bảng nhỏ trên bản đồ ───────────────────────────────────────────────
@@ -771,3 +852,49 @@ function stopMapEvents(el: HTMLElement, onClick: () => void): void {
 
 const TENT_SVG =
   '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20 12 4l9 16M12 4v16M8.5 20 12 13l3.5 7"/></svg>'
+
+/** Điểm giữa (theo chiều dài) của một đường [lon, lat]. */
+function midpoint(c: [number, number][]): [number, number] {
+  const seg: number[] = []
+  let total = 0
+  for (let i = 1; i < c.length; i++) {
+    const d = Math.hypot(c[i][0] - c[i - 1][0], c[i][1] - c[i - 1][1])
+    seg.push(d)
+    total += d
+  }
+  let left = total / 2
+  for (let i = 1; i < c.length; i++) {
+    if (left <= seg[i - 1] && seg[i - 1] > 0) {
+      const t = left / seg[i - 1]
+      return [c[i - 1][0] + (c[i][0] - c[i - 1][0]) * t, c[i - 1][1] + (c[i][1] - c[i - 1][1]) * t]
+    }
+    left -= seg[i - 1]
+  }
+  return c[c.length - 1]
+}
+
+/**
+ * Nền tooltip trắng 32×26 (vẽ ở 2×): thân bo tròn + đuôi tam giác ở giữa đáy.
+ * Vùng co giãn chừa đuôi ra để đuôi luôn ở giữa. null nếu không có canvas.
+ */
+function tooltipImage(): ImageData | null {
+  const cv = document.createElement('canvas')
+  cv.width = 64
+  cv.height = 52
+  const g = cv.getContext('2d')
+  if (!g) return null
+  g.fillStyle = '#FFFFFF'
+  g.strokeStyle = 'rgba(18,34,43,0.18)'
+  g.lineWidth = 2
+  g.beginPath()
+  g.roundRect(1, 1, 62, 36, 10)
+  g.moveTo(26, 37)
+  g.lineTo(32, 50)
+  g.lineTo(38, 37)
+  g.closePath()
+  g.fill()
+  g.stroke()
+  // Lấp vạch viền giữa thân và đuôi.
+  g.fillRect(27, 34, 10, 4)
+  return g.getImageData(0, 0, 64, 52)
+}

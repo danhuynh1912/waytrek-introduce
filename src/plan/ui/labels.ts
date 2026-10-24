@@ -3,7 +3,7 @@
 
 const POI_KIND: Record<string, string> = {
   shelter: 'Lán',
-  camp: 'Chỗ cắm trại',
+  camp: 'Cây cổ thụ',
   water: 'Nguồn nước',
   view: 'Điểm ngắm cảnh',
   food: 'Ăn uống',
