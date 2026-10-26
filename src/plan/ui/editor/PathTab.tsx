@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { Reorder, useDragControls } from 'motion/react'
 import { distance, meters } from '@/shared/format'
 import { draftChanged, draftPoints, pathDetails, wayTypes } from '../../core/path'
 import type { PathKind, PointsDraft } from '../../core/path'
 import type { PlanDoc, PlanResult, Waypoint } from '../../core/types'
-import { IClose, IPlus } from '../icons'
+import { IMore, IPlus } from '../icons'
 import { wayColors } from '../map/plan-map'
 
 /**
@@ -21,7 +21,7 @@ const WAY_LABEL: Record<PathKind, string> = {
 }
 
 export function PathTab({
-  doc, result, dark, roundTrip, onFocus, onAdd, onRoundTrip, onApply,
+  doc, result, dark, roundTrip, onFocus, onAdd, onReplace, onRoundTrip, onApply,
 }: {
   doc: PlanDoc
   result: PlanResult | null
@@ -29,6 +29,8 @@ export function PathTab({
   roundTrip: boolean
   onFocus(lat: number, lng: number): void
   onAdd(): void
+  /** "Thay thế bằng…": mở hộp tìm để thay điểm này — đổi kế hoạch ngay, như "Thêm điểm". */
+  onReplace(id: string): void
   onRoundTrip(on: boolean): void
   /** Áp thứ tự mới (id các điểm còn giữ) — một bước sửa, hoàn tác được. */
   onApply(ids: string[]): void
@@ -69,6 +71,7 @@ export function PathTab({
               onFocus={onFocus}
               onNudge={(d) => nudge(id, d)}
               onRemove={() => setDraft({ order: shown, removed: [...removed, id] })}
+              onReplace={() => onReplace(id)}
             />
           ))}
         </Reorder.Group>
@@ -153,25 +156,42 @@ export function PathTab({
 
 /**
  * Một điểm trong danh sách: kéo bằng chấm số (chỉ chấm số — vuốt ở chỗ khác vẫn
- * cuộn được danh sách trên điện thoại), bấm tên đưa bản đồ tới điểm, nút × bỏ
- * điểm khỏi bản đang soạn. Chấm số dùng phím: mũi tên lên / xuống đổi chỗ.
+ * cuộn được danh sách trên điện thoại), bấm tên đưa bản đồ tới điểm, nút ⋯ mở
+ * menu "Thay thế bằng…" / "Xoá" (chủ sản phẩm 26/10). Xoá chỉ bỏ khỏi bản đang
+ * soạn; thay thế đổi kế hoạch ngay. Chấm số dùng phím: mũi tên lên / xuống.
  */
-function PointPill({ wp, index, end, onFocus, onNudge, onRemove }: {
+function PointPill({ wp, index, end, onFocus, onNudge, onRemove, onReplace }: {
   wp: Waypoint
   index: number
   end: boolean
   onFocus(lat: number, lng: number): void
   onNudge(delta: -1 | 1): void
   onRemove(): void
+  onReplace(): void
 }) {
   const controls = useDragControls()
+  const [menu, setMenu] = useState(false)
+  const box = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    if (!menu) return
+    const away = (e: PointerEvent) => {
+      if (!box.current?.contains(e.target as Node)) setMenu(false)
+    }
+    const esc = (e: globalThis.KeyboardEvent) => e.key === 'Escape' && setMenu(false)
+    document.addEventListener('pointerdown', away)
+    document.addEventListener('keydown', esc)
+    return () => {
+      document.removeEventListener('pointerdown', away)
+      document.removeEventListener('keydown', esc)
+    }
+  }, [menu])
   const onKey = (e: KeyboardEvent<HTMLButtonElement>) => {
     if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
     e.preventDefault()
     onNudge(e.key === 'ArrowUp' ? -1 : 1)
   }
   return (
-    <Reorder.Item as="li" value={wp.id} dragListener={false} dragControls={controls} className="pl-wp-item">
+    <Reorder.Item as="li" value={wp.id} dragListener={false} dragControls={controls} className={`pl-wp-item${menu ? ' is-menu-open' : ''}`}>
       <div className="pl-wp-pill">
         <button
           type="button"
@@ -186,9 +206,45 @@ function PointPill({ wp, index, end, onFocus, onNudge, onRemove }: {
         <button type="button" className="pl-wp-name" onClick={() => onFocus(wp.latE6 / 1e6, wp.lonE6 / 1e6)} data-tip={`Đưa bản đồ tới ${wp.name}`}>
           {wp.name}
         </button>
-        <button type="button" className="pl-wp-del" onClick={onRemove} aria-label={`Bỏ ${wp.name}`} data-tip="Bỏ điểm này — bấm Áp dụng thì kế hoạch mới đổi">
-          <IClose size={16} />
-        </button>
+        <span className="pl-wp-more" ref={box}>
+          <button
+            type="button"
+            className="pl-wp-del"
+            onClick={() => setMenu((o) => !o)}
+            aria-haspopup="menu"
+            aria-expanded={menu}
+            aria-label={`Tuỳ chọn cho ${wp.name}`}
+            data-tip="Thay thế hoặc xoá điểm này"
+          >
+            <IMore size={18} />
+          </button>
+          <div className={`pl-menu pl-wp-menu${menu ? ' is-open' : ''}`} role="menu" aria-label={`Tuỳ chọn cho ${wp.name}`}>
+            <button
+              type="button"
+              role="menuitem"
+              className="pl-menu-item"
+              onClick={() => {
+                setMenu(false)
+                onReplace()
+              }}
+              data-tip="Tìm một đỉnh hay địa điểm khác để đứng đúng chỗ này — giữ thứ tự, ô nghỉ đêm và giờ đã đặt"
+            >
+              Thay thế bằng…
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="pl-menu-item"
+              onClick={() => {
+                setMenu(false)
+                onRemove()
+              }}
+              data-tip="Bỏ điểm này — bấm Áp dụng thì kế hoạch mới đổi"
+            >
+              Xoá
+            </button>
+          </div>
+        </span>
       </div>
     </Reorder.Item>
   )

@@ -21,9 +21,12 @@ type Remote = { text: string; state: 'loading' | 'error' } | { text: string; sta
  * TOÀN BỘ danh sách cung; gõ chữ thì thêm "Địa điểm" (OpenRouteService) và
  * những chỗ đã chọn trước đây khớp chữ đó. Chọn được nhiều mục, mục đã chọn
  * đứng đầu theo thứ tự chọn — cũng là thứ tự thêm vào kế hoạch.
+ *
+ * `replace`: mở từ "Thay thế bằng…" của một điểm (chủ sản phẩm 26/10) — chỉ
+ * chọn MỘT mục, bấm là thay ngay (`onReplace`), không combo, không nút thêm.
  */
 export function SearchDialog({
-  open, onClose, trails, combos, onPick, onAdd, focus,
+  open, onClose, trails, combos, onPick, onAdd, focus, replace = null, onReplace,
 }: {
   open: boolean
   onClose(): void
@@ -33,6 +36,9 @@ export function SearchDialog({
   onAdd(items: SearchPick[]): void
   /** Ưu tiên địa điểm gần chỗ này (điểm cuối của kế hoạch). */
   focus: { lat: number; lng: number } | null
+  /** Đang thay điểm nào (tên để nói ra); null = thêm điểm như thường. */
+  replace?: { name: string } | null
+  onReplace?(pick: SearchPick): void
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const input = useRef<HTMLInputElement>(null)
@@ -105,6 +111,12 @@ export function SearchDialog({
 
   const toggle = (id: string) =>
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
+  // Chế độ thay thế: chọn một mục là xong.
+  const replaceWith = (pick: SearchPick) => {
+    onReplace?.(pick)
+    onClose()
+  }
+  const togglePeak = (t: TrailPin) => (replace ? replaceWith({ kind: 'peak', trail: t }) : toggle(t.trailId))
   const togglePlace = (p: Place) => {
     const k = placeKey(p.id)
     if (!selected.includes(k)) {
@@ -112,7 +124,8 @@ export function SearchDialog({
       setRecent(saveRecentPlace(p))
       setChosenPlaces((m) => new Map(m).set(k, p))
     }
-    toggle(k)
+    if (replace) replaceWith({ kind: 'place', place: p })
+    else toggle(k)
   }
   const add = () => {
     if (picked.length === 0) return
@@ -130,11 +143,13 @@ export function SearchDialog({
         <button
           type="button"
           className="pl-hit"
-          aria-pressed={order != null}
-          onClick={() => toggle(t.trailId)}
-          data-tip={order != null ? 'Bỏ chọn đỉnh này' : 'Chọn đỉnh này — thêm vào kế hoạch theo thứ tự bạn chọn'}
+          aria-pressed={replace ? undefined : order != null}
+          onClick={() => togglePeak(t)}
+          data-tip={replace
+            ? `Thay ${replace.name} bằng đỉnh này`
+            : order != null ? 'Bỏ chọn đỉnh này' : 'Chọn đỉnh này — thêm vào kế hoạch theo thứ tự bạn chọn'}
         >
-          <span className="pl-pick-box">{order != null ? order : null}</span>
+          {!replace && <span className="pl-pick-box">{order != null ? order : null}</span>}
           <span className="pl-hit-text">
             <span className="pl-hit-name">{t.name}</span>
             <span className="pl-muted">{[t.region, t.peakEleM ? meters(t.peakEleM) : null].filter(Boolean).join(' · ')}</span>
@@ -142,7 +157,7 @@ export function SearchDialog({
         </button>
       ) : (
         <button type="button" className="pl-hit" onClick={() => view(t)} data-tip="Cung chưa có toạ độ đỉnh — bấm để xem cung trên bản đồ">
-          <span className="pl-pick-box is-off" aria-hidden="true" />
+          {!replace && <span className="pl-pick-box is-off" aria-hidden="true" />}
           <span className="pl-hit-text">
             <span className="pl-hit-name">{t.name}</span>
             <span className="pl-muted">Chưa có toạ độ đỉnh — xem trên bản đồ</span>
@@ -156,11 +171,13 @@ export function SearchDialog({
       <button
         type="button"
         className="pl-hit"
-        aria-pressed={order != null}
+        aria-pressed={replace ? undefined : order != null}
         onClick={() => togglePlace(p)}
-        data-tip={order != null ? 'Bỏ chọn địa điểm này' : 'Chọn địa điểm này để thêm vào kế hoạch'}
+        data-tip={replace
+          ? `Thay ${replace.name} bằng địa điểm này`
+          : order != null ? 'Bỏ chọn địa điểm này' : 'Chọn địa điểm này để thêm vào kế hoạch'}
       >
-        <span className="pl-pick-box">{order != null ? order : null}</span>
+        {!replace && <span className="pl-pick-box">{order != null ? order : null}</span>}
         <span className="pl-hit-text">
           <span className="pl-hit-name">{p.name}</span>
           <span className="pl-muted">{p.label}</span>
@@ -172,7 +189,13 @@ export function SearchDialog({
   const placesBusy = text.length >= GEOCODE_MIN_CHARS && (remote?.text !== text || remote.state === 'loading')
 
   return (
-    <dialog ref={dialog} className="pl-dialog pl-search-dialog" onClose={onClose} onCancel={onClose} aria-label="Chọn đỉnh hoặc địa điểm">
+    <dialog
+      ref={dialog}
+      className="pl-dialog pl-search-dialog"
+      onClose={onClose}
+      onCancel={onClose}
+      aria-label={replace ? `Thay thế ${replace.name} bằng…` : 'Chọn đỉnh hoặc địa điểm'}
+    >
       <div className="pl-search-top">
         <div className="pl-search">
           <ISearch size={16} />
@@ -201,11 +224,18 @@ export function SearchDialog({
             </button>
           )}
         </div>
-        <button type="button" className="pl-icon-btn" onClick={onClose} aria-label="Đóng hộp tìm" data-tip="Đóng, không thêm gì"><IClose size={20} /></button>
+        <button type="button" className="pl-icon-btn" onClick={onClose} aria-label="Đóng hộp tìm" data-tip={replace ? 'Đóng, giữ nguyên điểm cũ' : 'Đóng, không thêm gì'}>
+          <IClose size={20} />
+        </button>
       </div>
+      {replace && (
+        <p className="pl-search-replace">
+          Thay thế <b>{replace.name}</b> bằng…
+        </p>
+      )}
 
       <div className="pl-picker">
-        {comboRows.length > 0 && (
+        {!replace && comboRows.length > 0 && (
           <section aria-label="Combo gợi ý">
             <h3 className="pl-picker-head">Combo gợi ý</h3>
             <div className="pl-combos">
@@ -230,7 +260,7 @@ export function SearchDialog({
             </div>
           </section>
         )}
-        {picked.length > 0 && (
+        {!replace && picked.length > 0 && (
           <section aria-label="Đã chọn">
             <h3 className="pl-picker-head">Đã chọn · theo thứ tự thêm</h3>
             <ul className="pl-search-hits">
@@ -268,20 +298,22 @@ export function SearchDialog({
         </section>
       </div>
 
-      <div className="pl-picker-foot">
-        <button type="button" className="pl-btn pl-btn-quiet" onClick={() => setSelected([])} disabled={picked.length === 0} data-tip="Bỏ hết các đỉnh, địa điểm đã chọn">
-          Bỏ chọn
-        </button>
-        <button
-          type="button"
-          className="pl-btn pl-btn-primary"
-          onClick={add}
-          disabled={picked.length === 0}
-          data-tip={picked.length > 0 ? 'Thêm vào cuối kế hoạch theo thứ tự đã chọn (Ctrl/⌘ Enter)' : 'Chọn ít nhất một đỉnh hoặc địa điểm ở danh sách trên'}
-        >
-          {picked.length > 0 ? `Thêm ${picked.length} điểm vào kế hoạch` : 'Chọn đỉnh hoặc địa điểm để thêm'}
-        </button>
-      </div>
+      {!replace && (
+        <div className="pl-picker-foot">
+          <button type="button" className="pl-btn pl-btn-quiet" onClick={() => setSelected([])} disabled={picked.length === 0} data-tip="Bỏ hết các đỉnh, địa điểm đã chọn">
+            Bỏ chọn
+          </button>
+          <button
+            type="button"
+            className="pl-btn pl-btn-primary"
+            onClick={add}
+            disabled={picked.length === 0}
+            data-tip={picked.length > 0 ? 'Thêm vào cuối kế hoạch theo thứ tự đã chọn (Ctrl/⌘ Enter)' : 'Chọn ít nhất một đỉnh hoặc địa điểm ở danh sách trên'}
+          >
+            {picked.length > 0 ? `Thêm ${picked.length} điểm vào kế hoạch` : 'Chọn đỉnh hoặc địa điểm để thêm'}
+          </button>
+        </div>
+      )}
     </dialog>
   )
 }

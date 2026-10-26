@@ -113,6 +113,8 @@ export function PlanEditorScreen({
   const [toast, setToast] = useState<{ text: string; action?: ToastAction } | null>(null)
   const [startAsk, setStartAsk] = useState<StartPeakAsk | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
+  /** "Thay thế bằng…" của một điểm ở tab Waypoints: hộp tìm chỉ chọn một mục. */
+  const [replaceFor, setReplaceFor] = useState<{ id: string; name: string; lat: number; lng: number } | null>(null)
   // Vừa kéo một điểm sang chỗ / ngày khác: chờ kết quả của đúng bản đó rồi so
   // với lịch trước khi kéo — nặng thêm thì hỏi lại (chủ sản phẩm 26/10).
   const [strainCheck, setStrainCheck] = useState<{ doc: PlanDoc; before: PlanResult | null } | null>(null)
@@ -261,6 +263,25 @@ export function PlanEditorScreen({
    * lượt sửa — hoàn tác một lần là bỏ cả nhóm. Kế hoạch đang trống và mục đầu
    * là đỉnh thì hỏi chỗ xuất phát cho đỉnh đó, như khi thêm một đỉnh.
    */
+  /**
+   * Thay điểm đang chọn bằng một đỉnh / địa điểm (chủ sản phẩm 26/10): giữ id, thứ
+   * tự, ô nghỉ đêm, cách đi tới, giờ đã đặt — như kéo điểm sang chỗ khác trên bản
+   * đồ (`relocateWaypoint`). Một bước sửa, hoàn tác được.
+   */
+  const replacePoint = useCallback(
+    (pick: SearchPick) => {
+      const target = replaceFor
+      if (!target || (pick.kind === 'peak' && !pick.trail.hasPeak)) return
+      const to = pick.kind === 'peak'
+        ? { lat: pick.trail.lat, lon: pick.trail.lng, kind: 'peak' as const, ref: pick.trail.trailId, name: pick.trail.name }
+        : { lat: pick.place.lat, lon: pick.place.lon, kind: 'custom' as const, name: pick.place.name }
+      if (apply((doc) => relocateWaypoint(doc, target.id, to))) {
+        mapApi.current?.flyTo({ lat: to.lat, lng: to.lon }, pick.kind === 'peak' ? 12.5 : 15, fitPadding())
+      }
+    },
+    [replaceFor, apply],
+  )
+
   const addPicks = useCallback(
     (items: SearchPick[]) => {
       const picks = items.filter((p) => p.kind === 'place' || p.trail.hasPeak)
@@ -703,6 +724,10 @@ export function PlanEditorScreen({
             roundTrip={endsAtStart(ed.doc)}
             onFocus={actions.focus}
             onAdd={() => setSearchOpen(true)}
+            onReplace={(id) => {
+              const w = ed.doc.waypoints.find((x) => x.id === id)
+              if (w) setReplaceFor({ id, name: w.name, lat: w.latE6 / 1e6, lng: w.lonE6 / 1e6 })
+            }}
             onRoundTrip={(on) =>
               apply((doc) => {
                 if (on) return endsAtStart(doc) ? doc : returnToStart(doc, freshWaypointId(doc, rid))
@@ -813,13 +838,18 @@ export function PlanEditorScreen({
         }}
       />
       <SearchDialog
-        open={searchOpen}
-        onClose={() => setSearchOpen(false)}
+        open={searchOpen || replaceFor != null}
+        onClose={() => {
+          setSearchOpen(false)
+          setReplaceFor(null)
+        }}
         trails={trails}
         combos={combos}
         onPick={(t) => mapApi.current?.flyTo(t, 12.5, fitPadding())}
         onAdd={addPicks}
-        focus={lastPoint}
+        focus={replaceFor ?? lastPoint}
+        replace={replaceFor}
+        onReplace={replacePoint}
       />
     </div>
   )

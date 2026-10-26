@@ -1092,3 +1092,10 @@ body.pl-drag-active, body.pl-drag-active * { cursor: grabbing !important; -webki
 @media (prefers-reduced-motion: reduce) {
   .pl-app *, .pl-app *::before, .pl-app *::after { transition-duration: 0s !important; animation-duration: 0s !important; }
 }
+
+/* ---------- Menu ⋯ của một điểm ở tab Waypoints (26/10) ---------- */
+.pl-wp-more { position: relative; display: inline-flex; }
+.pl-wp-item.is-menu-open { position: relative; z-index: 5; }
+.pl-wp-menu { min-width: 180px; }
+.pl-search-replace { margin: 2px 4px 10px; font-size: 13px; color: var(--text-muted); }
+.pl-search-replace b { color: var(--text); }
