@@ -18,7 +18,7 @@ import {
   pushToNextDay,
   relocateWaypoint,
   removeWaypoint,
-  reorderWaypoints,
+  applyPointsDraft,
   returnToStart,
   setArriveAt,
   setAutoTime,
@@ -29,7 +29,9 @@ import {
   updateWaypoint,
 } from '../../core/doc'
 import { dayEditSupported, departAtSupported, MAX_AUTO_TIMES, restToggleAllowed } from '../../core/doc'
-import type { SettingsPatch } from '../../core/doc'
+import type { PointTarget, SettingsPatch } from '../../core/doc'
+import { stageReplacement } from '../../core/path'
+import type { PointsDraft } from '../../core/path'
 import { progress } from '../../core/checklist'
 import { clock } from '@/shared/format'
 import { decodePolyline } from '../../core/polyline'
@@ -117,6 +119,8 @@ export function PlanEditorScreen({
   const [searchOpen, setSearchOpen] = useState(false)
   /** Hỏi lại trước khi bỏ bản nháp chưa lưu — không hoàn tác được. */
   const [discardAsk, setDiscardAsk] = useState(false)
+  /** Bản đang soạn của tab Waypoints (kéo, xoá, thay thế) — chưa áp vào kế hoạch. */
+  const [pointsDraft, setPointsDraft] = useState<PointsDraft | null>(null)
   /** "Thay thế bằng…" của một điểm ở tab Waypoints: hộp tìm chỉ chọn một mục. */
   const [replaceFor, setReplaceFor] = useState<{ id: string; name: string; lat: number; lng: number } | null>(null)
   // Vừa kéo một điểm sang chỗ / ngày khác: chờ kết quả của đúng bản đó rồi so
@@ -268,22 +272,21 @@ export function PlanEditorScreen({
    * là đỉnh thì hỏi chỗ xuất phát cho đỉnh đó, như khi thêm một đỉnh.
    */
   /**
-   * Thay điểm đang chọn bằng một đỉnh / địa điểm (chủ sản phẩm 26/10): giữ id, thứ
-   * tự, ô nghỉ đêm, cách đi tới, giờ đã đặt — như kéo điểm sang chỗ khác trên bản
-   * đồ (`relocateWaypoint`). Một bước sửa, hoàn tác được.
+   * Chọn chỗ thay cho một điểm ở tab Waypoints: chỉ ghi vào bản đang soạn — bấm
+   * "Áp dụng" mới đổi kế hoạch (chủ sản phẩm 26/10, như kéo đổi thứ tự và xoá).
+   * Lúc áp, `applyPointsDraft` giữ id, thứ tự, ô nghỉ đêm, cách đi tới, giờ đã đặt.
    */
   const replacePoint = useCallback(
     (pick: SearchPick) => {
       const target = replaceFor
       if (!target || (pick.kind === 'peak' && !pick.trail.hasPeak)) return
-      const to = pick.kind === 'peak'
-        ? { lat: pick.trail.lat, lon: pick.trail.lng, kind: 'peak' as const, ref: pick.trail.trailId, name: pick.trail.name }
-        : { lat: pick.place.lat, lon: pick.place.lon, kind: 'custom' as const, name: pick.place.name }
-      if (apply((doc) => relocateWaypoint(doc, target.id, to))) {
-        mapApi.current?.flyTo({ lat: to.lat, lng: to.lon }, pick.kind === 'peak' ? 12.5 : 15, fitPadding())
-      }
+      const to: PointTarget = pick.kind === 'peak'
+        ? { lat: pick.trail.lat, lon: pick.trail.lng, kind: 'peak', ref: pick.trail.trailId, name: pick.trail.name }
+        : { lat: pick.place.lat, lon: pick.place.lon, kind: 'custom', name: pick.place.name }
+      const ids = ed.doc.waypoints.map((w) => w.id)
+      setPointsDraft((d) => stageReplacement(ids, d, target.id, to))
     },
-    [replaceFor, apply],
+    [replaceFor, ed.doc],
   )
 
   const addPicks = useCallback(
@@ -657,7 +660,11 @@ export function PlanEditorScreen({
         save={ed.save}
         tab={tab}
         prepCount={prepCount}
-        onTab={setTab}
+        onTab={(t) => {
+          // Rời tab Waypoints là bỏ bản đang soạn ở đó, như trước khi nó chuyển lên đây.
+          if (t !== 'path') setPointsDraft(null)
+          setTab(t)
+        }}
         onTitle={(v) => settings({ title: v })}
         onDate={(v) => settings({ startDate: v })}
         onRetryCompute={ed.retryCompute}
@@ -727,14 +734,21 @@ export function PlanEditorScreen({
             result={ed.result}
             dark={dark}
             roundTrip={endsAtStart(ed.doc)}
+            draft={pointsDraft}
+            onDraft={setPointsDraft}
             onFocus={actions.focus}
             onAdd={() => setSearchOpen(true)}
             onReplace={(id) => {
               const w = ed.doc.waypoints.find((x) => x.id === id)
-              if (w) setReplaceFor({ id, name: w.name, lat: w.latE6 / 1e6, lng: w.lonE6 / 1e6 })
+              if (!w) return
+              // Đang chờ thay rồi thì hộp tìm nói về chỗ MỚI.
+              const staged = pointsDraft?.replaced?.[id]
+              setReplaceFor(staged
+                ? { id, name: staged.name ?? w.name, lat: staged.lat, lng: staged.lon }
+                : { id, name: w.name, lat: w.latE6 / 1e6, lng: w.lonE6 / 1e6 })
             }}
             onRoundTrip={setRoundTrip}
-            onApply={(ids) => apply((doc) => reorderWaypoints(doc, ids))}
+            onApply={(ids, swaps) => apply((doc) => applyPointsDraft(doc, ids, swaps))}
           />
         ) : (
           <Checklist

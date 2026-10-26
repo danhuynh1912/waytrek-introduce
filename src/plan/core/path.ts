@@ -1,3 +1,4 @@
+import type { PointTarget } from './doc.ts'
 import type { DrawPiece, PlanResult } from './types.ts'
 
 /**
@@ -58,6 +59,8 @@ export interface PointsDraft {
   order: string[]
   /** Điểm đã bấm bỏ. */
   removed: string[]
+  /** "Thay thế bằng…" đã chọn mà chưa áp dụng: id → chỗ mới. */
+  replaced?: Readonly<Record<string, PointTarget>>
 }
 
 /**
@@ -75,7 +78,41 @@ export function draftPoints(ids: readonly string[], draft: PointsDraft | null): 
   return [...kept, ...ids.filter((id) => !seen.has(id) && !gone.has(id))]
 }
 
-/** Danh sách đang hiện khác kế hoạch chưa — nút "Áp dụng" chỉ sáng khi có. */
-export function draftChanged(ids: readonly string[], shown: readonly string[]): boolean {
-  return shown.length !== ids.length || shown.some((id, k) => id !== ids[k])
+/**
+ * Danh sách đang hiện khác kế hoạch chưa — nút "Áp dụng" chỉ sáng khi có. Có
+ * điểm đang chờ thay ([swaps]) cũng là khác.
+ */
+export function draftChanged(
+  ids: readonly string[],
+  shown: readonly string[],
+  swaps?: ReadonlyMap<string, PointTarget>,
+): boolean {
+  return (swaps?.size ?? 0) > 0 || shown.length !== ids.length || shown.some((id, k) => id !== ids[k])
+}
+
+/** Ghi một "Thay thế bằng…" vào bản soạn — kế hoạch chưa đổi. */
+export function stageReplacement(
+  ids: readonly string[],
+  draft: PointsDraft | null,
+  id: string,
+  to: PointTarget,
+): PointsDraft {
+  return {
+    order: draftPoints(ids, draft),
+    removed: draft?.removed ?? [],
+    replaced: { ...draft?.replaced, [id]: to },
+  }
+}
+
+/**
+ * Các thay thế còn áp được, theo thứ tự đang hiện: điểm đã bấm bỏ hay đã mất
+ * khỏi kế hoạch thì thôi.
+ */
+export function draftReplacements(shown: readonly string[], draft: PointsDraft | null): Map<string, PointTarget> {
+  const out = new Map<string, PointTarget>()
+  for (const id of shown) {
+    const to = draft?.replaced?.[id]
+    if (to) out.set(id, to)
+  }
+  return out
 }

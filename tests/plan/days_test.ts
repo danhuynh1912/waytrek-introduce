@@ -17,6 +17,7 @@ import {
   relocateWaypoint,
   removeWaypoint,
   reorderWaypoints,
+  applyPointsDraft,
   returnToStart,
   setAutoTime,
   setDepartAt,
@@ -202,6 +203,23 @@ Deno.test('tab Waypoints: khoảng còn nguyên hai đầu giữ số đêm, kho
   const cut = reorderWaypoints(d, ['a', 'b', 'd', 'e'])
   assertEquals(daysOf(cut), [0, 1, 2, 2])
   assertStrictEquals(reorderWaypoints(d, ids(d)), d)
+})
+
+Deno.test('tab Waypoints: "Thay thế bằng…" chỉ đổi kế hoạch lúc Áp dụng — thay rồi xếp, một bước sửa', () => {
+  const d = plan(['a', 'b', 'c'], [undefined, 1, 0])
+  const to = { lat: 22.3, lon: 103.8, kind: 'peak' as const, ref: 'T9', name: 'Hàm Lợn' }
+  const r = applyPointsDraft(d, ['a', 'c', 'b'], new Map([['b', to]]))
+  assert(r.ok)
+  assertEquals(ids(r.doc), ['a', 'c', 'b'])
+  const b = r.doc.waypoints.find((w) => w.id === 'b')!
+  assertEquals([b.name, b.kind, b.ref, b.latE6], ['Hàm Lợn', 'peak', 'T9', 22_300_000])
+  // Không có gì để thay: đúng như xếp lại.
+  const same = applyPointsDraft(d, ids(d), new Map())
+  assert(same.ok)
+  assertStrictEquals(same.doc, d)
+  // Chỗ mới ngoài vùng: không áp gì cả.
+  const out = applyPointsDraft(d, ['a', 'c', 'b'], new Map([['b', { ...to, lat: 50 }]]))
+  assertEquals(out, { ok: false, reason: 'outside' })
 })
 
 Deno.test('giờ ở điểm máy chèn: đặt, bỏ, khoá rỗng tự biến mất; giờ sai bị bỏ qua', () => {

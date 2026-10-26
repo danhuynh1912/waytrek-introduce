@@ -23,7 +23,8 @@ type Remote = { text: string; state: 'loading' | 'error' } | { text: string; sta
  * đứng đầu theo thứ tự chọn — cũng là thứ tự thêm vào kế hoạch.
  *
  * `replace`: mở từ "Thay thế bằng…" của một điểm (chủ sản phẩm 26/10) — chỉ
- * chọn MỘT mục, bấm là thay ngay (`onReplace`), không combo, không nút thêm.
+ * chọn MỘT mục (`onReplace`), không combo, không nút thêm. Chọn xong chỉ ghi vào
+ * bản đang soạn của tab Waypoints; bấm Áp dụng ở đó mới đổi kế hoạch.
  */
 export function SearchDialog({
   open, onClose, trails, combos, onPick, onAdd, focus, replace = null, onReplace,

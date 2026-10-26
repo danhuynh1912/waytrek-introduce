@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { Reorder, useDragControls } from 'motion/react'
 import { distance, meters } from '@/shared/format'
-import { draftChanged, draftPoints, pathDetails, wayTypes } from '../../core/path'
+import { draftChanged, draftPoints, draftReplacements, pathDetails, wayTypes } from '../../core/path'
 import type { PathKind, PointsDraft } from '../../core/path'
+import type { PointTarget } from '../../core/doc'
 import type { PlanDoc, PlanResult, Waypoint } from '../../core/types'
 import { IMore, IPlus } from '../icons'
 import { wayColors } from '../map/plan-map'
@@ -22,33 +23,38 @@ const WAY_LABEL: Record<PathKind, string> = {
 }
 
 export function PathTab({
-  doc, result, dark, roundTrip, onFocus, onAdd, onReplace, onRoundTrip, onApply,
+  doc, result, dark, roundTrip, draft, onDraft, onFocus, onAdd, onReplace, onRoundTrip, onApply,
 }: {
   doc: PlanDoc
   result: PlanResult | null
   dark: boolean
   roundTrip: boolean
+  /**
+   * Bản đang soạn (kéo đổi thứ tự, xoá, thay thế) — màn chính giữ, vì điểm thay
+   * thế được chọn trong hộp tìm của màn chính. Kế hoạch chỉ đổi khi bấm "Áp dụng"
+   * (chủ sản phẩm 26/10); nút đó tắt khi không còn gì khác kế hoạch.
+   */
+  draft: PointsDraft | null
+  onDraft(d: PointsDraft | null): void
   onFocus(lat: number, lng: number): void
   onAdd(): void
-  /** "Thay thế bằng…": mở hộp tìm để thay điểm này — đổi kế hoạch ngay, như "Thêm điểm". */
+  /** "Thay thế bằng…": mở hộp tìm cho điểm này — chọn xong chỉ ghi vào bản soạn. */
   onReplace(id: string): void
   onRoundTrip(on: boolean): void
-  /** Áp thứ tự mới (id các điểm còn giữ) — một bước sửa, hoàn tác được. */
-  onApply(ids: string[]): void
+  /** Áp bản soạn (id các điểm còn giữ + điểm thay thế) — một bước sửa, hoàn tác được. Trả false nếu không áp được. */
+  onApply(ids: string[], swaps: ReadonlyMap<string, PointTarget>): boolean
 }) {
   const types = wayTypes(result)
   const det = pathDetails(result)
   const colors = wayColors(dark)
   const wps = doc.waypoints
-  // Kéo đổi thứ tự, bỏ điểm: soạn ở đây, kế hoạch chỉ đổi khi bấm "Áp dụng"
-  // (chủ sản phẩm 26/10) — nút đó tắt khi không còn gì khác kế hoạch.
-  const [draft, setDraft] = useState<PointsDraft | null>(null)
   const ids = wps.map((w) => w.id)
   const shown = draftPoints(ids, draft)
-  const dirty = draftChanged(ids, shown)
+  const swaps = draftReplacements(shown, draft)
+  const dirty = draftChanged(ids, shown, swaps)
   const byId = new Map(wps.map((w) => [w.id, w]))
   const removed = draft?.removed ?? []
-  const reorder = (order: string[]) => setDraft({ order, removed })
+  const reorder = (order: string[]) => onDraft({ ...draft, order, removed })
   const nudge = (id: string, delta: -1 | 1) => {
     const i = shown.indexOf(id)
     const j = i + delta
@@ -67,11 +73,12 @@ export function PathTab({
             <PointPill
               key={id}
               wp={byId.get(id)!}
+              swap={swaps.get(id)}
               index={i}
               end={i === 0 || i === shown.length - 1}
               onFocus={onFocus}
               onNudge={(d) => nudge(id, d)}
-              onRemove={() => setDraft({ order: shown, removed: [...removed, id] })}
+              onRemove={() => onDraft({ ...draft, order: shown, removed: [...removed, id] })}
               onReplace={() => onReplace(id)}
             />
           ))}
@@ -90,15 +97,14 @@ export function PathTab({
             className="pl-btn pl-btn-primary"
             disabled={!dirty}
             onClick={() => {
-              onApply(shown)
-              setDraft(null)
+              if (onApply(shown, swaps)) onDraft(null)
             }}
-            data-tip={dirty ? 'Đổi kế hoạch theo thứ tự và các điểm đang xếp ở đây' : 'Kéo đổi thứ tự hoặc bỏ điểm rồi bấm để áp dụng'}
+            data-tip={dirty ? 'Đổi kế hoạch theo thứ tự và các điểm đang xếp ở đây' : 'Kéo đổi thứ tự, thay hoặc bỏ điểm rồi bấm để áp dụng'}
           >
             Áp dụng
           </button>
           {dirty && (
-            <button type="button" className="pl-text-btn" onClick={() => setDraft(null)} data-tip="Bỏ các thay đổi chưa áp dụng, về đúng kế hoạch hiện tại">
+            <button type="button" className="pl-text-btn" onClick={() => onDraft(null)} data-tip="Bỏ các thay đổi chưa áp dụng, về đúng kế hoạch hiện tại">
               Huỷ thay đổi
             </button>
           )}
@@ -154,11 +160,13 @@ export function PathTab({
 /**
  * Một điểm trong danh sách: kéo bằng chấm số (chỉ chấm số — vuốt ở chỗ khác vẫn
  * cuộn được danh sách trên điện thoại), bấm tên đưa bản đồ tới điểm, nút ⋯ mở
- * menu "Thay thế bằng…" / "Xoá" (chủ sản phẩm 26/10). Xoá chỉ bỏ khỏi bản đang
- * soạn; thay thế đổi kế hoạch ngay. Chấm số dùng phím: mũi tên lên / xuống.
+ * menu "Thay thế bằng…" / "Xoá" (chủ sản phẩm 26/10). Cả hai chỉ đổi bản đang
+ * soạn — điểm chờ thay ([swap]) hiện tên và chỗ MỚI. Chấm số dùng phím: mũi tên
+ * lên / xuống.
  */
-function PointPill({ wp, index, end, onFocus, onNudge, onRemove, onReplace }: {
+function PointPill({ wp, swap, index, end, onFocus, onNudge, onRemove, onReplace }: {
   wp: Waypoint
+  swap?: PointTarget
   index: number
   end: boolean
   onFocus(lat: number, lng: number): void
@@ -182,6 +190,7 @@ function PointPill({ wp, index, end, onFocus, onNudge, onRemove, onReplace }: {
       document.removeEventListener('keydown', esc)
     }
   }, [menu])
+  const name = swap?.name ?? wp.name
   const onKey = (e: KeyboardEvent<HTMLButtonElement>) => {
     if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
     e.preventDefault()
@@ -195,13 +204,18 @@ function PointPill({ wp, index, end, onFocus, onNudge, onRemove, onReplace }: {
           className={`pl-wp-badge is-grab${end ? ' is-end' : ''}`}
           onPointerDown={(e) => controls.start(e)}
           onKeyDown={onKey}
-          aria-label={`Điểm ${index + 1}: ${wp.name} — kéo, hoặc mũi tên lên / xuống để đổi thứ tự`}
+          aria-label={`Điểm ${index + 1}: ${name} — kéo, hoặc mũi tên lên / xuống để đổi thứ tự`}
           data-tip="Giữ và kéo để đổi thứ tự"
         >
           {index + 1}
         </button>
-        <button type="button" className="pl-wp-name" onClick={() => onFocus(wp.latE6 / 1e6, wp.lonE6 / 1e6)} data-tip={`Đưa bản đồ tới ${wp.name}`}>
-          {wp.name}
+        <button
+          type="button"
+          className="pl-wp-name"
+          onClick={() => (swap ? onFocus(swap.lat, swap.lon) : onFocus(wp.latE6 / 1e6, wp.lonE6 / 1e6))}
+          data-tip={swap ? `Thay cho ${wp.name} — bấm Áp dụng thì kế hoạch mới đổi` : `Đưa bản đồ tới ${wp.name}`}
+        >
+          {name}
         </button>
         <span className="pl-wp-more" ref={box}>
           <button
@@ -210,12 +224,12 @@ function PointPill({ wp, index, end, onFocus, onNudge, onRemove, onReplace }: {
             onClick={() => setMenu((o) => !o)}
             aria-haspopup="menu"
             aria-expanded={menu}
-            aria-label={`Tuỳ chọn cho ${wp.name}`}
+            aria-label={`Tuỳ chọn cho ${name}`}
             data-tip="Thay thế hoặc xoá điểm này"
           >
             <IMore size={18} />
           </button>
-          <div className={`pl-menu pl-wp-menu${menu ? ' is-open' : ''}`} role="menu" aria-label={`Tuỳ chọn cho ${wp.name}`}>
+          <div className={`pl-menu pl-wp-menu${menu ? ' is-open' : ''}`} role="menu" aria-label={`Tuỳ chọn cho ${name}`}>
             <button
               type="button"
               role="menuitem"
@@ -224,7 +238,7 @@ function PointPill({ wp, index, end, onFocus, onNudge, onRemove, onReplace }: {
                 setMenu(false)
                 onReplace()
               }}
-              data-tip="Tìm một đỉnh hay địa điểm khác để đứng đúng chỗ này — giữ thứ tự, ô nghỉ đêm và giờ đã đặt"
+              data-tip="Chọn đỉnh hay địa điểm khác cho chỗ này — bấm Áp dụng thì kế hoạch mới đổi"
             >
               Thay thế bằng…
             </button>

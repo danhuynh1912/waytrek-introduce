@@ -1,5 +1,5 @@
 import { assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts'
-import { draftChanged, draftPoints, pathDetails, wayTypes } from '../../src/plan/core/path.ts'
+import { draftChanged, draftPoints, draftReplacements, pathDetails, stageReplacement, wayTypes } from '../../src/plan/core/path.ts'
 import type { DrawPiece, PlanResult, ResultLeg } from '../../src/plan/core/types.ts'
 
 const piece = (kind: DrawPiece['kind'], distanceM: number, extra: Partial<DrawPiece> = {}): DrawPiece => ({
@@ -43,4 +43,21 @@ Deno.test('danh sách "Các điểm" đang soạn: kéo, bỏ, và tự khớp k
   assertEquals(draftPoints(['a', 'b', 'c', 'e'], d), ['c', 'a', 'e'])
   // Xếp lại đúng thứ tự cũ: không còn gì để áp dụng.
   assertEquals(draftChanged(ids, draftPoints(ids, { order: ids, removed: [] })), false)
+})
+
+Deno.test('danh sách "Các điểm" đang soạn: thay thế chờ Áp dụng, điểm đã bỏ / đã mất thì thôi', () => {
+  const ids = ['a', 'b', 'c']
+  const to = { lat: 22.3, lon: 103.8, kind: 'custom' as const, name: 'Hàm Lợn' }
+  const d = stageReplacement(ids, null, 'b', to)
+  assertEquals(d.order, ids)
+  assertEquals(draftReplacements(draftPoints(ids, d), d), new Map([['b', to]]))
+  // Chỉ thay, không đổi thứ tự: vẫn có gì để áp dụng.
+  assertEquals(draftChanged(ids, draftPoints(ids, d), draftReplacements(draftPoints(ids, d), d)), true)
+  // Giữ thứ tự và điểm bỏ đã xếp trước đó.
+  const d2 = stageReplacement(ids, { order: ['c', 'a', 'b'], removed: ['a'] }, 'c', to)
+  assertEquals(draftPoints(ids, d2), ['c', 'b'])
+  // Điểm chờ thay mà bị bỏ, hay mất khỏi kế hoạch: không còn thay nữa.
+  const gone = { ...d, removed: ['b'] }
+  assertEquals(draftReplacements(draftPoints(ids, gone), gone).size, 0)
+  assertEquals(draftReplacements(draftPoints(['a', 'c'], d), d).size, 0)
 })

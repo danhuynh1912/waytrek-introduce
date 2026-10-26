@@ -336,6 +336,9 @@ export function updateWaypoint(
   )
 }
 
+/** Chỗ mới của một điểm (kéo trên bản đồ, "Thay thế bằng…"). */
+export type PointTarget = { lat: number; lon: number; kind: WaypointKind; ref?: string; name?: string }
+
 /**
  * Kéo một điểm sang chỗ khác: giữ id, ô nghỉ đêm, cách đi tới, mốc giờ. Tên đi
  * theo CHỖ THẢ (chủ sản phẩm 26/10): thả lên một đỉnh / POI (`to.name`) thì mang
@@ -343,11 +346,7 @@ export function updateWaypoint(
  * đúng chỗ — về tên mặc định theo số thứ tự ("Điểm 3"). Điểm tự chấm / trên lộ
  * trình giữ tên: có thể là tên người dùng tự đặt.
  */
-export function relocateWaypoint(
-  doc: PlanDoc,
-  id: string,
-  to: { lat: number; lon: number; kind: WaypointKind; ref?: string; name?: string },
-): EditResult {
+export function relocateWaypoint(doc: PlanDoc, id: string, to: PointTarget): EditResult {
   if (!inBounds(to.lat, to.lon)) return { ok: false, reason: 'outside' }
   const old = doc.waypoints.find((w) => w.id === id)
   if (!old) return { ok: false, reason: 'missing' }
@@ -365,6 +364,25 @@ export function relocateWaypoint(
     ok: true,
     doc: withWaypoints(doc, doc.waypoints.map((w) => (w.id === id ? moved : w))),
   }
+}
+
+/**
+ * Áp bản đang soạn của tab Waypoints trong MỘT bước sửa (hoàn tác một lần):
+ * thay các điểm đã chọn "Thay thế bằng…" rồi xếp theo `ids` (chủ sản phẩm 26/10
+ * — thay thế cũng chờ bấm Áp dụng, như kéo đổi thứ tự và xoá).
+ */
+export function applyPointsDraft(
+  doc: PlanDoc,
+  ids: readonly string[],
+  swaps: ReadonlyMap<string, PointTarget>,
+): EditResult {
+  let next = doc
+  for (const [id, to] of swaps) {
+    const r = relocateWaypoint(next, id, to)
+    if (!r.ok) return r
+    next = r.doc
+  }
+  return { ok: true, doc: reorderWaypoints(next, ids) }
 }
 
 /** Tên điểm khi giữ một vùng nên nghỉ làm chỗ cắm trại. */
