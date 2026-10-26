@@ -13,7 +13,7 @@ import type {
   Popup,
 } from 'maplibre-gl'
 import type { Feature, FeatureCollection } from 'geojson'
-import { decodePolyline } from '../../core/polyline'
+import { decodePolyline } from '@/shared/polyline'
 import { MAP_INK } from '@/shared/map/ink'
 import type { MapInk } from '@/shared/map/ink'
 import { ReliefMap } from '@/shared/map/relief-map'

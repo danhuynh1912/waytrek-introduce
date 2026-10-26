@@ -414,9 +414,12 @@
 .st-trail-side { position: sticky; top: 88px; display: grid; gap: 14px; }
 .st-trail-map { position: relative; height: 440px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
 .st-trail-canvas { width: 100%; height: 100%; background: var(--bg); }
-.st-trail .maplibregl-ctrl.maplibregl-ctrl-attrib { background: color-mix(in srgb, var(--bg) 82%, transparent); color: var(--text-muted); }
-.st-trail .maplibregl-ctrl-attrib a { color: var(--text-2); }
-:root[data-theme='dark'] .st-trail .maplibregl-ctrl-attrib-button { filter: invert(1); }
+.st-trail .maplibregl-ctrl.maplibregl-ctrl-attrib,
+.st-track .maplibregl-ctrl.maplibregl-ctrl-attrib { background: color-mix(in srgb, var(--bg) 82%, transparent); color: var(--text-muted); }
+.st-trail .maplibregl-ctrl-attrib a,
+.st-track .maplibregl-ctrl-attrib a { color: var(--text-2); }
+:root[data-theme='dark'] .st-trail .maplibregl-ctrl-attrib-button,
+:root[data-theme='dark'] .st-track .maplibregl-ctrl-attrib-button { filter: invert(1); }
 .st-map-fit {
   position: absolute; top: 10px; right: 10px; z-index: 2; display: grid; place-items: center; width: 34px; height: 34px;
   border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text-2);
@@ -455,3 +458,18 @@
 .st-score { display: inline-flex; align-items: center; gap: 3px; font-weight: 700; color: var(--dc-l, var(--text-2)); font-variant-numeric: tabular-nums; }
 :root[data-theme='dark'] .st-score { color: var(--dc-d, var(--text-2)); }
 .st-score.is-label { font-weight: 600; color: var(--text-muted); }
+
+/* Trang theo dõi chuyến đi cho người thân (/t/<token>, WayTrek spec/43 §10.6):
+   chữ trạng thái to, bản đồ, một dòng ghi chú — không thẻ, không chấm nhấp nháy. */
+.st-track { padding-bottom: 56px; }
+.st-track-head { padding: 40px 0 22px; display: grid; gap: 8px; }
+.st-track-kicker { margin: 0; font-size: 14px; font-weight: 600; color: var(--text-2); }
+.st-track-status { margin: 0; font-size: clamp(28px, 4vw, 40px); line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; text-wrap: balance; }
+.st-track-detail { max-width: 640px; }
+.st-track-dates { margin: 0; font-size: 13.5px; color: var(--text-muted); }
+.st-track-map { height: min(64vh, 560px); }
+.st-track-note { margin-top: 14px; font-size: 13px; line-height: 1.6; color: var(--text-muted); }
+@media (max-width: 640px) {
+  .st-track-head { padding-top: 28px; }
+  .st-track-map { height: 58vh; }
+}

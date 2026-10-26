@@ -31,3 +31,11 @@ Deno.test('trang → đường dẫn → trang giữ nguyên; nút mở app dùn
   }
   assertEquals(appLink({ page: 'trail', trailId: T, routeId: null }), `waytrek://trail/${T}`)
 })
+
+Deno.test('link theo dõi chuyến đi: /t/<token 24 ký tự>, giữ nguyên hoa thường', () => {
+  const tok = 'AbCdEfGhIjKlMnOpQrSt-_Wx'
+  assertEquals(parseSiteRoute(`/t/${tok}`), { page: 'track', token: tok })
+  assertEquals(sitePath({ page: 'track', token: tok }), `/t/${tok}`)
+  assertEquals(parseSiteRoute('/t/ngan'), { page: 'notFound' })
+  assertEquals(parseSiteRoute(`/t/${tok}x`), { page: 'notFound' })
+})

@@ -8,11 +8,18 @@ export type SiteRoute =
   | { page: 'home' }
   | { page: 'map'; trailId: string | null }
   | { page: 'trail'; trailId: string; routeId: string | null }
+  // Link theo dõi chuyến đi cho người thân (WayTrek spec/43 §10.6). CHỈ có ở
+  // web: app không có màn tương ứng, apple-app-site-association không nhận
+  // /t/* — người nhận link thường không cài app, nên link luôn mở trang này.
+  | { page: 'track'; token: string }
   | { page: 'notFound' }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const uuidOrNull = (v: string | null): string | null => (v && UUID.test(v) ? v.toLowerCase() : null)
+
+/** Token link theo dõi: 24 ký tự base64url do máy chủ sinh (giữ nguyên hoa / thường). */
+const TRACK_TOKEN = /^[A-Za-z0-9_-]{24}$/
 
 /** Đường dẫn + chuỗi truy vấn → trang. Không bao giờ ném: link tới từ mạng xã hội, gõ tay, link cũ. */
 export function parseSiteRoute(pathname: string, search = ''): SiteRoute {
@@ -28,6 +35,7 @@ export function parseSiteRoute(pathname: string, search = ''): SiteRoute {
   if (segs.length === 2 && segs[0] === 'trail' && UUID.test(segs[1])) {
     return { page: 'trail', trailId: segs[1].toLowerCase(), routeId: uuidOrNull(q.get('route')) }
   }
+  if (segs.length === 2 && segs[0] === 't' && TRACK_TOKEN.test(segs[1])) return { page: 'track', token: segs[1] }
   return { page: 'notFound' }
 }
 
@@ -40,6 +48,8 @@ export function sitePath(r: SiteRoute): string {
       return r.trailId ? `/map?trail=${r.trailId}` : '/map'
     case 'trail':
       return r.routeId ? `/trail/${r.trailId}?route=${r.routeId}` : `/trail/${r.trailId}`
+    case 'track':
+      return `/t/${r.token}`
     case 'notFound':
       return '/'
   }

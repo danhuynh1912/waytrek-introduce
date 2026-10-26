@@ -1,6 +1,6 @@
 import { assert, assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts'
 import { dismissAutoStop, isTailTrim, patchSettings, relocateWaypoint, removeWaypoint, setArriveAt, setDepartAt, updateWaypoint } from '../../src/plan/core/doc.ts'
-import { decodePolyline } from '../../src/plan/core/polyline.ts'
+import { decodePolyline } from '../../src/shared/polyline.ts'
 import { pickTapHit } from '../../src/plan/core/snap.ts'
 import { dayNote } from '../../src/plan/core/warnings.ts'
 import { eleAt, pointAlong, profileGeometry, stopOffsets } from '../../src/plan/core/profile.ts'

@@ -12,6 +12,7 @@ import { SiteFooter, SiteHeader } from './ui/SiteChrome'
 
 const MapPage = lazy(() => import('./pages/MapPage'))
 const TrailPage = lazy(() => import('./pages/TrailPage'))
+const TrackPage = lazy(() => import('./pages/TrackPage'))
 
 export default function SiteApp() {
   const { route } = useSiteLocation()
@@ -26,6 +27,7 @@ export default function SiteApp() {
           {route.page === 'map' && <MapPage selected={route.trailId} dark={dark} />}
           {/* Khoá theo CUNG, không theo cả địa chỉ: đổi ?route= chỉ đổi lộ trình, không dựng lại bản đồ. */}
           {route.page === 'trail' && <TrailPage key={route.trailId} trailId={route.trailId} routeId={route.routeId} dark={dark} />}
+          {route.page === 'track' && <TrackPage key={route.token} token={route.token} dark={dark} />}
           {route.page === 'notFound' && <NotFoundPage />}
         </Suspense>
       </main>
