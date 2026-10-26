@@ -671,7 +671,7 @@ function TimesPopover({ name, info, overnight, arriveAt, departAt, canArrive, ca
             <p className="pl-rest-tip-head">Giờ có mặt</p>
             <div className="pl-times-row">
               <select value={arrive} aria-label={`Giờ có mặt ở ${name}`} tabIndex={open ? 0 : -1} onChange={(e) => pickArrive(e.target.value)} className={arrive === 'auto' ? '' : 'is-on'}>
-                <option value="auto">Tự tính{arrive === 'auto' && info ? ` · ${clock(info.etaMin)}` : ''}</option>
+                <option value="auto">Hệ thống tự tính{arrive === 'auto' && info ? ` · ${clock(info.etaMin)}` : ''}</option>
                 <option value="sunrise">Lúc bình minh{arrive === 'sunrise' && info?.targetMin != null ? ` · ${clock(info.targetMin)}` : ''}</option>
                 <option value="clock">Lúc…</option>
               </select>
@@ -686,7 +686,7 @@ function TimesPopover({ name, info, overnight, arriveAt, departAt, canArrive, ca
             <p className="pl-rest-tip-head">{overnight ? 'Giờ xuất phát sáng hôm sau' : 'Giờ xuất phát'}</p>
             <div className="pl-times-row">
               <select value={depart} aria-label={`Giờ xuất phát ở ${name}`} tabIndex={open ? 0 : -1} onChange={(e) => pickDepart(e.target.value)} className={depart === 'auto' ? '' : 'is-on'}>
-                <option value="auto">Tự tính{depart === 'auto' && info?.departMin != null ? ` · ${clock(info.departMin)}` : ''}</option>
+                <option value="auto">Hệ thống tự tính{depart === 'auto' && info?.departMin != null ? ` · ${clock(info.departMin)}` : ''}</option>
                 <option value="clock">Lúc…</option>
               </select>
               {departAt !== undefined && (

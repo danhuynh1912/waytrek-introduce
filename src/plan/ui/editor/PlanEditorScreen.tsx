@@ -41,7 +41,9 @@ import { addedStrain, lateArrivalOf } from '../../core/warnings'
 import { fetchRoutesInBbox, fetchSnap, fetchStartTrailhead } from '../../data/api'
 import type { Bbox } from '../../data/api'
 import type { AuthRequest } from '@/shared/AuthDialog'
-import { IFit, ILocate, IMinus, IPlus, IReturn, ITent } from '../icons'
+import { IFit, ILocate, IMinus, IPlus, ITent } from '../icons'
+import { ConfirmDialog } from './ConfirmDialog'
+import { RoundTripSwitch } from './RoundTripSwitch'
 import type { LatLng, LayerKey, MapAuto, MapWaypoint, PlanMapHandlers, Snapped } from '../map/plan-map'
 import { navigate, replaceSilently } from '../route'
 import { Checklist } from './Checklist'
@@ -113,6 +115,8 @@ export function PlanEditorScreen({
   const [toast, setToast] = useState<{ text: string; action?: ToastAction } | null>(null)
   const [startAsk, setStartAsk] = useState<StartPeakAsk | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
+  /** Hỏi lại trước khi bỏ bản nháp chưa lưu — không hoàn tác được. */
+  const [discardAsk, setDiscardAsk] = useState(false)
   /** "Thay thế bằng…" của một điểm ở tab Waypoints: hộp tìm chỉ chọn một mục. */
   const [replaceFor, setReplaceFor] = useState<{ id: string; name: string; lat: number; lng: number } | null>(null)
   // Vừa kéo một điểm sang chỗ / ngày khác: chờ kết quả của đúng bản đó rồi so
@@ -474,6 +478,14 @@ export function PlanEditorScreen({
   }
 
   const settings = (p: SettingsPatch) => apply((doc) => patchSettings(doc, p))
+  /** "Quay về điểm xuất phát" — cùng một công tắc ở tab Waypoints và cuối tab Lịch trình. */
+  const setRoundTrip = (on: boolean) =>
+    apply((doc) => {
+      if (on) return endsAtStart(doc) ? doc : returnToStart(doc, freshWaypointId(doc, rid))
+      // Tắt: bỏ điểm cuối khi nó chính là điểm xuất phát (đã quay về).
+      const last = doc.waypoints[doc.waypoints.length - 1]
+      return endsAtStart(doc) && doc.waypoints.length > 2 ? removeWaypoint(doc, last.id) : doc
+    })
   /**
    * Giờ xuất phát của điểm đầu (cũng là giờ đi mặc định của các ngày sau): giờ có
    * mặt đã đặt trong ngày leo đầu tiên thôi tính ngược giờ đi (`clearArrivalsAfter`).
@@ -700,18 +712,11 @@ export function PlanEditorScreen({
               dayMove={dayEditSupported(ed.result)}
               autoTimes={ed.doc.autoTimes}
             />
-            {count >= 2 && !endsAtStart(ed.doc) && (
-              <button
-                type="button"
-                className="pl-btn pl-btn-quiet pl-return"
-                onClick={() => apply((doc) => returnToStart(doc, freshWaypointId(doc, rid)))}
-                data-tip="Thêm điểm cuối trùng điểm xuất phát — chuyến đi rồi quay về"
-              >
-                <IReturn size={16} /> Quay về điểm xuất phát
-              </button>
-            )}
+            <div className="pl-path-tools pl-return">
+              <RoundTripSwitch on={endsAtStart(ed.doc)} disabled={count < 2} onChange={setRoundTrip} />
+            </div>
             {!ed.saved && count > 0 && (
-              <button type="button" className="pl-text-btn pl-discard" onClick={ed.discardNewDraft} data-tip="Xoá bản nháp chưa lưu, bắt đầu lại với bản đồ trống">
+              <button type="button" className="pl-text-btn pl-discard" onClick={() => setDiscardAsk(true)} data-tip="Xoá bản nháp chưa lưu, bắt đầu lại với bản đồ trống">
                 Bỏ bản nháp này
               </button>
             )}
@@ -728,13 +733,7 @@ export function PlanEditorScreen({
               const w = ed.doc.waypoints.find((x) => x.id === id)
               if (w) setReplaceFor({ id, name: w.name, lat: w.latE6 / 1e6, lng: w.lonE6 / 1e6 })
             }}
-            onRoundTrip={(on) =>
-              apply((doc) => {
-                if (on) return endsAtStart(doc) ? doc : returnToStart(doc, freshWaypointId(doc, rid))
-                // Tắt: bỏ điểm cuối khi nó chính là điểm xuất phát (đã quay về).
-                const last = doc.waypoints[doc.waypoints.length - 1]
-                return endsAtStart(doc) && doc.waypoints.length > 2 ? removeWaypoint(doc, last.id) : doc
-              })}
+            onRoundTrip={setRoundTrip}
             onApply={(ids) => apply((doc) => reorderWaypoints(doc, ids))}
           />
         ) : (
@@ -836,6 +835,18 @@ export function PlanEditorScreen({
           setStrainCheck(null)
           ed.undo()
         }}
+      />
+      <ConfirmDialog
+        open={discardAsk}
+        title="Bỏ bản nháp này?"
+        body="Kế hoạch chưa lưu sẽ mất hẳn — không hoàn tác được."
+        confirmLabel="Bỏ bản nháp"
+        cancelLabel="Giữ lại"
+        onConfirm={() => {
+          setDiscardAsk(false)
+          ed.discardNewDraft()
+        }}
+        onCancel={() => setDiscardAsk(false)}
       />
       <SearchDialog
         open={searchOpen || replaceFor != null}

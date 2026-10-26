@@ -7,6 +7,7 @@ import type { PathKind, PointsDraft } from '../../core/path'
 import type { PlanDoc, PlanResult, Waypoint } from '../../core/types'
 import { IMore, IPlus } from '../icons'
 import { wayColors } from '../map/plan-map'
+import { RoundTripSwitch } from './RoundTripSwitch'
 
 /**
  * Tab "Waypoints" (theo komoot, chủ sản phẩm 24/10): các điểm đã chọn, thanh
@@ -103,11 +104,7 @@ export function PathTab({
           )}
         </div>
         <div className="pl-path-tools">
-          <label className="pl-switch" data-tip="Thêm điểm cuối trùng điểm xuất phát — tắt thì bỏ điểm đó">
-            <input type="checkbox" checked={roundTrip} disabled={wps.length < 2} onChange={(e) => onRoundTrip(e.target.checked)} />
-            <span className="pl-switch-track" aria-hidden="true" />
-            <span>Quay về điểm xuất phát</span>
-          </label>
+          <RoundTripSwitch on={roundTrip} disabled={wps.length < 2} onChange={onRoundTrip} />
         </div>
       </section>
 

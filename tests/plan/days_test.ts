@@ -392,7 +392,7 @@ Deno.test('sửa giờ xuất phát: bỏ giờ có mặt mà giờ đó quyết
   assertEquals(afterRide.autoTimes, { transfer: { arriveAt: 22 * 60 } })
 })
 
-Deno.test('giờ xuất phát đã đặt mà nay tới nơi muộn hơn (điểm trước dời muộn): bỏ, về "Tự tính"; hoàn tác thì về lại', () => {
+Deno.test('giờ xuất phát đã đặt mà nay tới nơi muộn hơn (điểm trước dời muộn): bỏ, về "Hệ thống tự tính"; hoàn tác thì về lại', () => {
   const st = (id: string, extra: Partial<ResultStop>): ResultStop => ({
     id, kind: 'custom', ref: null, name: id, latE6: 0, lonE6: 0, eleM: null, day: 0, etaMin: 600, rest: false,
     restSource: null, inserted: false, poiId: null, waypointIndex: -1, afterWaypointIndex: 0, leaveByMin: null,

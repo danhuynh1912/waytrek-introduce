@@ -587,7 +587,7 @@ export function clearArrivalsAfter(doc: PlanDoc, result: PlanResult | null, from
 /**
  * Giờ xuất phát đặt sẵn ở giữa ngày mà nay tới nơi đã muộn hơn — thường vì một
  * điểm trước đó vừa dời muộn (chủ sản phẩm 26/10): bỏ giờ đó, giờ đi ở đây thành
- * dự tính ("Tự tính"), không cảnh báo. Giữ lại thì ô sửa vẫn ghi 09:15 trong khi
+ * dự tính ("Hệ thống tự tính"), không cảnh báo. Giữ lại thì ô sửa vẫn ghi 09:15 trong khi
  * kế hoạch đi 10:16. Đọc giờ rời THẬT của từng điểm trong `result` (máy chủ
  * tính). Chỗ ngủ đêm thì giờ đặt là giờ đi sáng hôm sau — luôn giữ. Không có gì
  * để bỏ thì trả lại đúng `doc`.

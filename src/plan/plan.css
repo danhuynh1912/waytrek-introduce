@@ -451,6 +451,7 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
   .pl-stop-tools + .pl-times-pick, .pl-stop-tools + .pl-eta { margin-left: 0; }
 }
 .pl-return { margin: 12px 16px 0; }
+.pl-path-tools.pl-return { margin: 14px 16px 0; }
 
 /* Kéo một điểm sang chỗ khác / ngày khác (chủ sản phẩm 26/10): chấm số và nút
  * tay nắm là chỗ cầm; vạch chèn nói điểm sẽ nằm ở đâu, ngày nào. */
@@ -662,7 +663,7 @@ body.pl-drag-active, body.pl-drag-active * { cursor: grabbing !important; -webki
 .pl-suggest-list b { font-weight: 600; }
 .pl-suggest-notes { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; font-size: 12.5px; line-height: 1.4; color: var(--text-2); }
 .pl-suggest-actions { display: flex; gap: 8px; margin-top: 10px; }
-.pl-discard { display: block; margin: 16px 16px 0; font-size: 12.5px; color: var(--text-muted); }
+.pl-discard { display: block; margin: 16px 16px 0; font-size: 12.5px; color: var(--red); }
 
 /* ---------- Chuẩn bị ---------- */
 .pl-prep { padding: 12px 16px; }
