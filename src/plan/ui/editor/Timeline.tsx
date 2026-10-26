@@ -1000,7 +1000,7 @@ function NightTransfer({ value, onChange }: { value: number | null; onChange(min
   }
   return (
     <div className="pl-night">
-      <label className="pl-check" data-tip="Xe đón từ tối hôm trước, tới chân núi trong đêm — nghỉ lại hay leo luôn từ rạng sáng tuỳ đoàn">
+      <label className="pl-check" data-tip="Xe đón từ tối hôm trước, tới chân núi trong đêm">
         <input
           type="checkbox"
           checked={value != null}
