@@ -30,7 +30,7 @@ export function StatsBar({ result, pace, fresh, onPace, onHover }: Props) {
         <div className="pl-stat">
           <dt>Tốc độ</dt>
           <dd>
-            <button type="button" className="pl-text-btn" onClick={onPace} title="Đổi tốc độ đi">
+            <button type="button" className="pl-text-btn" onClick={onPace} data-tip="Đổi tốc độ đi trong Cài đặt — giờ cả kế hoạch tính lại theo">
               {fmtPace(pace)}
             </button>
           </dd>

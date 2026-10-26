@@ -9,29 +9,39 @@ import {
   keepAutoStop,
   makeWaypoint,
   MAX_WAYPOINTS,
+  moveToDay,
   moveWaypoint,
   nextPointName,
   patchSettings,
   prependStart,
+  pushAutoToNextDay,
+  pushToNextDay,
   relocateWaypoint,
   removeWaypoint,
+  reorderWaypoints,
   returnToStart,
   setArriveAt,
+  setAutoTime,
+  setDepartAt,
+  clearArrivalsAfter,
   suggestReadiness,
+  toggleRest,
   updateWaypoint,
 } from '../../core/doc'
-import { restToggleAllowed } from '../../core/doc'
+import { dayEditSupported, departAtSupported, MAX_AUTO_TIMES, restToggleAllowed } from '../../core/doc'
 import type { SettingsPatch } from '../../core/doc'
 import { progress } from '../../core/checklist'
 import { clock } from '@/shared/format'
 import { decodePolyline } from '../../core/polyline'
 import { pointAlong } from '../../core/profile'
-import { buildTimeline, drawLines } from '../../core/timeline'
-import type { PlanDoc, ResultStop, TrailPin, Waypoint } from '../../core/types'
+import { dayLayout } from '../../core/days'
+import { buildTimeline, drawLines, isRestSuggestion } from '../../core/timeline'
+import type { PlanDoc, PlanResult, ResultStop, TrailPin, Waypoint } from '../../core/types'
+import { addedStrain, lateArrivalOf } from '../../core/warnings'
 import { fetchRoutesInBbox, fetchSnap, fetchStartTrailhead } from '../../data/api'
 import type { Bbox } from '../../data/api'
 import type { AuthRequest } from '@/shared/AuthDialog'
-import { IFit, ILocate, IMinus, IPlus, IReturn } from '../icons'
+import { IFit, ILocate, IMinus, IPlus, IReturn, ITent } from '../icons'
 import type { LatLng, LayerKey, MapAuto, MapWaypoint, PlanMapHandlers, Snapped } from '../map/plan-map'
 import { navigate, replaceSilently } from '../route'
 import { Checklist } from './Checklist'
@@ -45,6 +55,8 @@ import { SearchDialog } from './SearchDialog'
 import type { SearchPick } from './SearchDialog'
 import { StartPeakDialog } from './StartPeakDialog'
 import type { StartPeakAsk } from './StartPeakDialog'
+import { StrainDialog } from './StrainDialog'
+import { LateArrivalDialog } from './LateArrivalDialog'
 import { SuggestPanel } from './SuggestPanel'
 import { Timeline } from './Timeline'
 import type { TimelineActions } from './Timeline'
@@ -58,6 +70,7 @@ const REASON_TEXT: Record<string, string> = {
   full: `Mỗi kế hoạch tối đa ${MAX_WAYPOINTS} điểm.`,
   outside: 'Chỉ đặt được điểm trong Việt Nam.',
   missing: 'Điểm này không còn trong kế hoạch.',
+  timesFull: `Mỗi kế hoạch đặt giờ được ở tối đa ${MAX_AUTO_TIMES} điểm máy chọn — bỏ bớt giờ ở vài điểm rồi đặt lại.`,
 }
 
 /** Lộ trình các cung chỉ tải khi đã phóng gần — máy chủ từ chối khung rộng hơn 3°. */
@@ -71,6 +84,13 @@ function fitPadding() {
   return narrow
     ? { top: 70, right: 30, bottom: Math.round(window.innerHeight * 0.42), left: 30 }
     : { top: 76, right: 76, bottom: 176, left: 420 }
+}
+
+/** Nút kèm thông báo nhanh; `tip` là câu giải thích khi rê chuột (tooltip chung). */
+interface ToastAction {
+  label: string
+  tip?: string
+  run(): void
 }
 
 export function PlanEditorScreen({
@@ -87,12 +107,20 @@ export function PlanEditorScreen({
   const ed = usePlanEditor({ routeId, session, onSaved: (id) => replaceSilently(`/plan/${id}`) })
   const { trails, pois, combos, error: catalogError, retry: retryCatalog } = useCatalog()
   const mapApi = useRef<MapApi | null>(null)
-  const [layers, setLayers] = useState<Record<LayerKey, boolean>>({ routes: true, pois: true, peaks: true, terrain: true })
+  const [layers, setLayers] = useState<Record<LayerKey, boolean>>({ rests: true, routes: true, pois: true, peaks: true, terrain: true })
   const [tab, setTab] = useState<PanelTab>('path')
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [toast, setToast] = useState<{ text: string; action?: { label: string; run(): void } } | null>(null)
+  const [toast, setToast] = useState<{ text: string; action?: ToastAction } | null>(null)
   const [startAsk, setStartAsk] = useState<StartPeakAsk | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
+  // Vừa kéo một điểm sang chỗ / ngày khác: chờ kết quả của đúng bản đó rồi so
+  // với lịch trước khi kéo — nặng thêm thì hỏi lại (chủ sản phẩm 26/10).
+  const [strainCheck, setStrainCheck] = useState<{ doc: PlanDoc; before: PlanResult | null } | null>(null)
+  // Vừa đặt giờ có mặt ở một điểm: chờ kết quả của đúng bản đó — tới sau giờ
+  // an toàn mà phải đi bộ trong tối thì hỏi "Đồng ý / Dời sang ngày sau".
+  const [lateCheck, setLateCheck] = useState<
+    { doc: PlanDoc; target: { kind: 'wp'; id: string } | { kind: 'auto'; key: string } } | null
+  >(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const guide = useGuide()
   // Hướng dẫn hiện ở cùng khoảng trên cùng với thông báo nhanh, và thường nói
@@ -100,7 +128,7 @@ export function PlanEditorScreen({
   const shownToast = guide.current ? null : toast
 
   // Thông báo nhanh; có `action` thì kèm một nút (đứng lâu hơn để kịp bấm).
-  const say = useCallback((text: string, action?: { label: string; run(): void }) => {
+  const say = useCallback((text: string, action?: ToastAction) => {
     setToast({ text, action })
     if (toastTimer.current) clearTimeout(toastTimer.current)
     toastTimer.current = setTimeout(() => setToast(null), action ? 8000 : 3500)
@@ -118,6 +146,27 @@ export function PlanEditorScreen({
 
   const trailsById = useMemo(() => new Map(trails.map((t) => [t.trailId, t])), [trails])
   const timeline = useMemo(() => buildTimeline(ed.doc, ed.result, ed.resultDoc), [ed.doc, ed.result, ed.resultDoc])
+  // Có chỗ nghỉ máy chủ gợi ý thì mới có nút ẩn / hiện — tính trên MỌI dòng, kể
+  // cả khi đang ẩn, để bấm hiện lại được.
+  const hasRestSuggestions = timeline.rows.some((r) => r.type === 'auto' && isRestSuggestion(r.stop))
+  // Hậu quả của lần kéo vừa rồi — chỉ khi kết quả là của ĐÚNG bản vừa kéo và
+  // chưa sửa gì thêm (sửa tiếp rồi thì "Hoàn tác" không còn hoàn tác lần kéo).
+  const late = useMemo(() => {
+    const c = lateCheck
+    if (!c || ed.doc !== c.doc || ed.resultDoc !== c.doc || !ed.result) return null
+    const t = c.target
+    const hit = lateArrivalOf(ed.result, (st) => (t.kind === 'wp' ? st.id === t.id : st.timeKey === t.key))
+    return hit && hit.stop.targetMin != null && hit.day.limitMin != null
+      ? { name: hit.stop.name, targetMin: hit.stop.targetMin, limitMin: hit.day.limitMin, stop: hit.stop }
+      : null
+  }, [lateCheck, ed.doc, ed.resultDoc, ed.result])
+  const strain = useMemo(
+    () =>
+      strainCheck && ed.doc === strainCheck.doc && ed.resultDoc === strainCheck.doc && ed.result
+        ? addedStrain(strainCheck.before, ed.result)
+        : null,
+    [strainCheck, ed.doc, ed.resultDoc, ed.result],
+  )
   const draw = useMemo(() => drawLines(ed.doc, ed.result, ed.resultDoc), [ed.doc, ed.result, ed.resultDoc])
 
   const waypoints: MapWaypoint[] = useMemo(
@@ -141,14 +190,16 @@ export function PlanEditorScreen({
         lat: stop.latE6 / 1e6,
         lng: stop.lonE6 / 1e6,
         name: stop.name,
+        suggestion: isRestSuggestion(stop),
         zoneLine: stop.zone?.line,
         ...(stop.trailhead || stop.transfer || stop.pickup
           ? {
             info: {
               sub: [
-                stop.trailhead ? `Bắt đầu đi bộ lúc ${clock(stop.etaMin)}` : null,
-                stop.pickup ? `Lên xe lúc ${clock(stop.etaMin)}` : null,
-                stop.transfer ? 'Ngủ đêm sau chuyến xe tối hôm trước' : null,
+                // Giờ RỜI điểm: có giờ xuất phát đặt ở đó thì đi bộ / lên xe lúc ấy.
+                stop.trailhead ? `Đi bộ từ ${clock(stop.departMin ?? stop.etaMin)}` : null,
+                stop.pickup ? `Lên xe lúc ${clock(stop.departMin ?? stop.etaMin)}` : null,
+                stop.transfer ? 'Tới sau chuyến xe từ tối hôm trước' : null,
               ].filter(Boolean).join(' · '),
               icon: stop.trailhead ? 'walk' as const : stop.pickup ? 'car' as const : 'tent' as const,
             },
@@ -287,6 +338,7 @@ export function PlanEditorScreen({
         // Bật lại nằm sâu trong Cài đặt — đưa nút ra ngay lúc vừa tắt.
         say('Đã bỏ mọi vùng nên nghỉ — đoàn không mang lều.', {
           label: 'Mang lều',
+          tip: 'Bật lại: đoàn có mang lều, chỗ không có lán thì gợi ý vùng nên nghỉ',
           run: () => {
             apply((doc) => patchSettings(doc, { camp: true }))
             setToast(null)
@@ -318,25 +370,32 @@ export function PlanEditorScreen({
 
   const mapHandlers: Omit<PlanMapHandlers, 'onReady' | 'onFatal'> = {
     onMapClick: addPoint,
+    nextPointName: () => nextPointName(ed.doc),
+    obstructed: fitPadding,
     onAddPeak: addPeak,
     onAddPoi: (p) =>
       apply((doc) =>
         appendWaypoint(doc, makeWaypoint({ id: freshWaypointId(doc, rid), kind: 'poi', ref: p.poiId, lat: p.lat, lon: p.lng, name: p.name })),
       ),
-    onWaypointMoved: (id, at, snapped) => {
+    onWaypointMoved: (id, at, snapped, target) => {
+      // Thả đúng lên một đỉnh / POI (điểm đã hít vào tâm nó): thành chính chỗ đó —
+      // tên, loại, mã (chủ sản phẩm 26/10). Không thì như cũ: lộ trình hoặc tự chấm.
       const ok = apply((doc) =>
-        relocateWaypoint(doc, id, {
-          lat: snapped?.lat ?? at.lat,
-          lon: snapped?.lng ?? at.lng,
-          kind: snapped ? 'route' : 'custom',
-          ref: snapped?.trailId,
-        }),
+        target
+          ? relocateWaypoint(doc, id, { lat: target.lat, lon: target.lng, kind: target.kind, ref: target.ref, name: target.name })
+          : relocateWaypoint(doc, id, {
+            lat: snapped?.lat ?? at.lat,
+            lon: snapped?.lng ?? at.lng,
+            kind: snapped ? 'route' : 'custom',
+            ref: snapped?.trailId,
+          }),
       )
-      if (ok && !snapped) snapToPath(id, at)
+      if (ok && !snapped && !target) snapToPath(id, at)
     },
     onWaypointRemove: (id) => apply((doc) => removeWaypoint(doc, id)),
-    onWaypointToggleRest: (id) =>
-      apply((doc) => updateWaypoint(doc, id, { rest: !doc.waypoints.find((w) => w.id === id)?.rest })),
+    // Cùng thao tác với ô "Nghỉ đêm ở đây" trên dòng thời gian (bỏ giờ xuất phát
+    // đã đặt, giữ đúng số đêm đã xếp ngày).
+    onWaypointToggleRest: (id) => apply((doc) => toggleRest(doc, id)),
     onKeepAuto: (id) => {
       const a = autoById(id)
       if (a) keepAuto(a.stop, a.afterWaypointId)
@@ -352,19 +411,54 @@ export function PlanEditorScreen({
     rename: (id, name) => apply((doc) => updateWaypoint(doc, id, { name })),
     move: (id, d) => apply((doc) => moveWaypoint(doc, id, d)),
     remove: (id) => apply((doc) => removeWaypoint(doc, id)),
-    toggleRest: (id) => apply((doc) => updateWaypoint(doc, id, { rest: !doc.waypoints.find((w) => w.id === id)?.rest })),
+    toggleRest: (id) => apply((doc) => toggleRest(doc, id)),
     setTransport: (id, t) => apply((doc) => updateWaypoint(doc, id, { transport: t })),
     keepAuto,
     dismissAuto,
-    setArriveAt: (id, at) => apply((doc) => setArriveAt(doc, id, at)),
+    setArriveAt: (id, at) => {
+      let next: PlanDoc | null = null
+      apply((doc) => (next = setArriveAt(doc, id, at)))
+      setLateCheck(at != null && next ? { doc: next, target: { kind: 'wp', id } } : null)
+    },
+    // Sửa giờ xuất phát thì giờ có mặt phía sau tính lại theo nó (chủ sản phẩm
+    // 26/10) — bỏ giờ có mặt đã đặt ở các điểm mà giờ xuất phát đó quyết.
+    setDepartAt: (id, m, nightHere) =>
+      apply((doc) => {
+        const next = setDepartAt(doc, id, m, nightHere)
+        return m == null ? next : clearArrivalsAfter(next, ed.result, { kind: 'wp', id })
+      }),
     setNightTransfer: (min) => apply((doc) => patchSettings(doc, { nightTransferMin: min })),
-    setDepart: (min) => apply((doc) => patchSettings(doc, { departMin: min })),
+    setDepart: (min) => setFirstDepart(min),
     chooseRest: (stop, choice) => apply((doc) => chooseRest(doc, stop, choice, freshWaypointId(doc, rid))),
+    moveToDay: (id, slot) => {
+      const before = ed.result
+      const { dayOf } = dayLayout(timeline.rows)
+      let moved: PlanDoc | null = null
+      apply((doc) => (moved = moveToDay(doc, dayOf, id, slot)))
+      if (moved && moved !== ed.doc) setStrainCheck({ doc: moved, before })
+    },
+    setAutoTime: (key, patch) => {
+      const live = new Set(ed.result?.stops.flatMap((s) => (s.timeKey ? [s.timeKey] : [])) ?? [])
+      let next: PlanDoc | null = null
+      apply((doc) => {
+        const r = setAutoTime(doc, key, patch, live)
+        if (!r.ok) return r
+        next = patch.departAt == null ? r.doc : clearArrivalsAfter(r.doc, ed.result, { kind: 'auto', key })
+        return { ok: true, doc: next }
+      })
+      setLateCheck(patch.arriveAt != null && next ? { doc: next, target: { kind: 'auto', key } } : null)
+    },
     // Bấm chấm số ở lộ trình: soi kỹ đúng điểm đó (chủ sản phẩm 24/10 — 13 còn xa quá).
     focus: (lat, lng) => mapApi.current?.flyTo({ lat, lng }, 16, fitPadding()),
   }
 
   const settings = (p: SettingsPatch) => apply((doc) => patchSettings(doc, p))
+  /**
+   * Giờ xuất phát của điểm đầu (cũng là giờ đi mặc định của các ngày sau): giờ có
+   * mặt đã đặt trong ngày leo đầu tiên thôi tính ngược giờ đi (`clearArrivalsAfter`).
+   */
+  const setFirstDepart = (min: number) =>
+    apply((doc) => clearArrivalsAfter(patchSettings(doc, { departMin: min }), ed.result, { kind: 'first' }))
 
   // ─── Về vị trí của tôi ──────────────────────────────────────────────────
   // Chỉ hỏi vị trí khi người dùng bấm nút — không xin quyền lúc mở trang.
@@ -472,7 +566,9 @@ export function PlanEditorScreen({
               <h1>Đăng nhập để mở kế hoạch này</h1>
               <p>Kế hoạch chỉ mở được bằng chính tài khoản đã tạo ra nó.</p>
               <div className="pl-intro-actions">
-                <button type="button" className="pl-btn pl-btn-primary" onClick={() => requestLogin({})}>Đăng nhập</button>
+                <button type="button" className="pl-btn pl-btn-primary" onClick={() => requestLogin({})} data-tip="Đăng nhập bằng tài khoản đã tạo kế hoạch này">
+                  Đăng nhập
+                </button>
               </div>
             </>
           )}
@@ -481,7 +577,9 @@ export function PlanEditorScreen({
               <h1>Không tìm thấy kế hoạch</h1>
               <p>Kế hoạch có thể đã bị xoá, hoặc thuộc một tài khoản khác.</p>
               <div className="pl-intro-actions">
-                <button type="button" className="pl-btn pl-btn-primary" onClick={() => navigate('/plan')}>Kế hoạch của tôi</button>
+                <button type="button" className="pl-btn pl-btn-primary" onClick={() => navigate('/plan')} data-tip="Về danh sách kế hoạch đã lưu">
+                  Kế hoạch của tôi
+                </button>
               </div>
             </>
           )}
@@ -490,7 +588,9 @@ export function PlanEditorScreen({
               <h1>Chưa mở được kế hoạch</h1>
               <p>{ed.load.message}</p>
               <div className="pl-intro-actions">
-                <button type="button" className="pl-btn pl-btn-primary" onClick={() => window.location.reload()}>Thử lại</button>
+                <button type="button" className="pl-btn pl-btn-primary" onClick={() => window.location.reload()} data-tip="Tải lại trang để mở lại kế hoạch">
+                  Thử lại
+                </button>
               </div>
             </>
           )}
@@ -527,7 +627,6 @@ export function PlanEditorScreen({
         onTab={setTab}
         onTitle={(v) => settings({ title: v })}
         onDate={(v) => settings({ startDate: v })}
-        onDepart={(m) => settings({ departMin: m })}
         onRetryCompute={ed.retryCompute}
         onRetrySave={save}
         onConflict={ed.resolveConflict}
@@ -540,7 +639,7 @@ export function PlanEditorScreen({
           <>
             {catalogError && (
               <p className="pl-status is-warn pl-pad">
-                {catalogError} <button type="button" className="pl-text-btn" onClick={retryCatalog}>Thử lại</button>
+                {catalogError} <button type="button" className="pl-text-btn" onClick={retryCatalog} data-tip="Tải lại các đỉnh, lộ trình, lán trên bản đồ">Thử lại</button>
               </p>
             )}
             <SuggestPanel
@@ -549,28 +648,51 @@ export function PlanEditorScreen({
               onSuggest={ed.suggest}
               onApply={applySuggestion}
               onDismiss={ed.dismissSuggestion}
+              extra={hasRestSuggestions && (
+                // Ẩn / hiện chỗ nghỉ máy chủ gợi ý — trên bản đồ lẫn dòng thời gian
+                // (chủ sản phẩm 26/10), cùng hàng và cùng kiểu với nút gợi ý.
+                <button
+                  type="button"
+                  className="pl-btn pl-btn-quiet pl-suggest-btn"
+                  onClick={() => setLayers((l) => ({ ...l, rests: !l.rests }))}
+                  data-tip={layers.rests
+                    ? 'Ẩn lán và vùng nên nghỉ WayTrek tự chọn — chỉ còn những điểm bạn chọn, trên bản đồ lẫn ở đây'
+                    : 'Hiện lại lán và vùng nên nghỉ WayTrek tự chọn cho các đêm'}
+                >
+                  <ITent size={16} />
+                  {/* Nhãn ngắn: cả hai trạng thái vừa một hàng với nút gợi ý (đo 26/10: nhãn dài làm hàng xuống dòng khi đổi). */}
+                  {layers.rests ? 'Ẩn chỗ nghỉ' : 'Hiện chỗ nghỉ'}
+                </button>
+              )}
             />
             <Timeline
               rows={timeline.rows}
               count={count}
-              fresh={ed.fresh || ed.result == null}
+              fresh={ed.rowsFresh || ed.result == null}
               computeError={ed.computeError}
               trails={trailsById}
               actions={actions}
               nightTransferMin={ed.doc.nightTransferMin ?? null}
               firstLegWpId={ed.doc.waypoints[1]?.id ?? null}
+              departOk={departAtSupported(ed.result)}
+              showRests={layers.rests}
+              dayMove={dayEditSupported(ed.result)}
+              autoTimes={ed.doc.autoTimes}
             />
             {count >= 2 && !endsAtStart(ed.doc) && (
               <button
                 type="button"
                 className="pl-btn pl-btn-quiet pl-return"
                 onClick={() => apply((doc) => returnToStart(doc, freshWaypointId(doc, rid)))}
+                data-tip="Thêm điểm cuối trùng điểm xuất phát — chuyến đi rồi quay về"
               >
                 <IReturn size={16} /> Quay về điểm xuất phát
               </button>
             )}
             {!ed.saved && count > 0 && (
-              <button type="button" className="pl-text-btn pl-discard" onClick={ed.discardNewDraft}>Bỏ bản nháp này</button>
+              <button type="button" className="pl-text-btn pl-discard" onClick={ed.discardNewDraft} data-tip="Xoá bản nháp chưa lưu, bắt đầu lại với bản đồ trống">
+                Bỏ bản nháp này
+              </button>
             )}
           </>
         ) : tab === 'path' ? (
@@ -588,6 +710,7 @@ export function PlanEditorScreen({
                 const last = doc.waypoints[doc.waypoints.length - 1]
                 return endsAtStart(doc) && doc.waypoints.length > 2 ? removeWaypoint(doc, last.id) : doc
               })}
+            onApply={(ids) => apply((doc) => reorderWaypoints(doc, ids))}
           />
         ) : (
           <Checklist
@@ -618,10 +741,32 @@ export function PlanEditorScreen({
         onSearch={() => setSearchOpen(true)}
       />
       <div className="pl-controls">
-        <button type="button" className="pl-ctrl" onClick={() => mapApi.current?.zoomBy(1)} aria-label="Phóng to"><IPlus /></button>
-        <button type="button" className="pl-ctrl" onClick={() => mapApi.current?.zoomBy(-1)} aria-label="Thu nhỏ"><IMinus /></button>
-        <button type="button" className="pl-ctrl" onClick={fitPlan} disabled={count === 0} aria-label="Ôm trọn kế hoạch" title="Ôm trọn kế hoạch"><IFit /></button>
-        <button type="button" className="pl-ctrl" onClick={locate} disabled={locating} aria-label="Về vị trí của tôi" title="Về vị trí của tôi"><ILocate /></button>
+        <button type="button" className="pl-ctrl" onClick={() => mapApi.current?.zoomBy(1)} aria-label="Phóng to" data-tip="Phóng to bản đồ">
+          <IPlus />
+        </button>
+        <button type="button" className="pl-ctrl" onClick={() => mapApi.current?.zoomBy(-1)} aria-label="Thu nhỏ" data-tip="Thu nhỏ bản đồ">
+          <IMinus />
+        </button>
+        <button
+          type="button"
+          className="pl-ctrl"
+          onClick={fitPlan}
+          disabled={count === 0}
+          aria-label="Ôm trọn kế hoạch"
+          data-tip="Ôm trọn mọi điểm của kế hoạch vào khung nhìn"
+        >
+          <IFit />
+        </button>
+        <button
+          type="button"
+          className="pl-ctrl"
+          onClick={locate}
+          disabled={locating}
+          aria-label="Về vị trí của tôi"
+          data-tip="Đưa bản đồ về chỗ bạn đang đứng — trình duyệt sẽ hỏi quyền vị trí"
+        >
+          <ILocate />
+        </button>
       </div>
       <StatsBar
         result={ed.result}
@@ -634,10 +779,39 @@ export function PlanEditorScreen({
       <div className={`pl-toast${shownToast ? ' is-on' : ''}${shownToast?.action ? ' has-action' : ''}`} role="status" aria-live="polite">
         {shownToast?.text}
         {shownToast?.action && (
-          <button type="button" className="pl-toast-action" onClick={shownToast.action.run}>{shownToast.action.label}</button>
+          <button type="button" className="pl-toast-action" onClick={shownToast.action.run} data-tip={shownToast.action.tip}>
+            {shownToast.action.label}
+          </button>
         )}
       </div>
       <StartPeakDialog ask={startAsk} onClose={() => setStartAsk(null)} />
+      <LateArrivalDialog
+        late={late}
+        onKeep={() => setLateCheck(null)}
+        onNextDay={() => {
+          const c = lateCheck
+          setLateCheck(null)
+          if (!c || !late) return
+          const { dayOf } = dayLayout(timeline.rows)
+          if (c.target.kind === 'wp') {
+            const id = c.target.id
+            apply((doc) => pushToNextDay(doc, dayOf, id))
+            return
+          }
+          const key = c.target.key
+          const next = ed.doc.waypoints[late.stop.afterWaypointIndex + 1]
+          const live = new Set(ed.result?.stops.flatMap((s) => (s.timeKey ? [s.timeKey] : [])) ?? [])
+          if (next) apply((doc) => pushAutoToNextDay(doc, dayOf, next.id, key, live))
+        }}
+      />
+      <StrainDialog
+        lines={strain}
+        onKeep={() => setStrainCheck(null)}
+        onUndo={() => {
+          setStrainCheck(null)
+          ed.undo()
+        }}
+      />
       <SearchDialog
         open={searchOpen}
         onClose={() => setSearchOpen(false)}

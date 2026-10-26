@@ -69,8 +69,17 @@ export function PlanList({ session, onLogin }: { session: Session | null; onLogi
           <h1>Lên kế hoạch chuyến trek</h1>
           <p>Từng giờ của chuyến đi, tính trên địa hình thật.</p>
           <div className="pl-intro-actions">
-            <button type="button" className="pl-btn pl-btn-primary" onClick={() => open('/plan/new')}>Bắt đầu lên kế hoạch</button>
-            <button type="button" className="pl-btn pl-btn-quiet" onClick={onLogin}>Đăng nhập</button>
+            <button
+              type="button"
+              className="pl-btn pl-btn-primary"
+              onClick={() => open('/plan/new')}
+              data-tip="Mở bản đồ, chọn các điểm của chuyến — chưa cần đăng nhập"
+            >
+              Bắt đầu lên kế hoạch
+            </button>
+            <button type="button" className="pl-btn pl-btn-quiet" onClick={onLogin} data-tip="Đăng nhập để xem các kế hoạch đã lưu">
+              Đăng nhập
+            </button>
           </div>
         </div>
       </main>
@@ -81,13 +90,13 @@ export function PlanList({ session, onLogin }: { session: Session | null; onLogi
     <main className="pl-page">
       <div className="pl-list-head">
         <h1>Kế hoạch của tôi</h1>
-        <button type="button" className="pl-btn pl-btn-primary" onClick={() => open('/plan/new')}>
+        <button type="button" className="pl-btn pl-btn-primary" onClick={() => open('/plan/new')} data-tip="Soạn một kế hoạch mới trên bản đồ">
           <IPlus size={16} /> Kế hoạch mới
         </button>
       </div>
 
       {unsaved && (
-        <button type="button" className="pl-list-row is-draft" onClick={() => open('/plan/new')}>
+        <button type="button" className="pl-list-row is-draft" onClick={() => open('/plan/new')} data-tip="Soạn tiếp bản nháp đang nằm trên trình duyệt này">
           <span className="pl-list-title">{unsaved.doc.title}</span>
           <span className="pl-list-meta">Bản nháp chưa lưu · {unsaved.doc.waypoints.length} điểm</span>
         </button>
@@ -96,7 +105,7 @@ export function PlanList({ session, onLogin }: { session: Session | null; onLogi
       {state.kind === 'loading' && <div className="pl-progress" aria-label="Đang tải" />}
       {state.kind === 'failed' && (
         <p className="pl-note pl-note-danger">
-          {state.message} <button type="button" className="pl-text-btn" onClick={reload}>Thử lại</button>
+          {state.message} <button type="button" className="pl-text-btn" onClick={reload} data-tip="Tải lại danh sách kế hoạch">Thử lại</button>
         </p>
       )}
       {state.kind === 'ready' && state.plans.length === 0 && !unsaved && (
@@ -118,6 +127,7 @@ export function PlanList({ session, onLogin }: { session: Session | null; onLogi
               <a
                 className="pl-list-row"
                 href={`/plan/${p.id}`}
+                data-tip="Mở kế hoạch để xem và sửa"
                 onClick={(e) => {
                   e.preventDefault()
                   open(`/plan/${p.id}`)
@@ -132,11 +142,17 @@ export function PlanList({ session, onLogin }: { session: Session | null; onLogi
               {confirming === p.id ? (
                 <span className="pl-list-confirm">
                   Xoá kế hoạch này?
-                  <button type="button" className="pl-btn pl-btn-danger" onClick={() => remove(p.id)}>Xoá</button>
-                  <button type="button" className="pl-btn pl-btn-quiet" onClick={() => setConfirming(null)}>Huỷ</button>
+                  <button type="button" className="pl-btn pl-btn-danger" onClick={() => remove(p.id)} data-tip="Xoá hẳn kế hoạch khỏi tài khoản">Xoá</button>
+                  <button type="button" className="pl-btn pl-btn-quiet" onClick={() => setConfirming(null)} data-tip="Giữ lại kế hoạch">Huỷ</button>
                 </span>
               ) : (
-                <button type="button" className="pl-icon-btn" aria-label={`Xoá ${p.title}`} onClick={() => setConfirming(p.id)}>
+                <button
+                  type="button"
+                  className="pl-icon-btn"
+                  aria-label={`Xoá ${p.title}`}
+                  data-tip="Xoá kế hoạch này — sẽ hỏi lại trước khi xoá"
+                  onClick={() => setConfirming(p.id)}
+                >
                   <ITrash size={17} />
                 </button>
               )}

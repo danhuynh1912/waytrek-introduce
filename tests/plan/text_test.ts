@@ -51,8 +51,8 @@ Deno.test('cảnh báo ngày: tới sau giờ an toàn là đỏ, dời giờ l�
     level: 'danger',
     text: 'Tới nơi 17:40, quá giờ an toàn 16:26. Hoàng hôn 17:26 — trong rừng tối sớm hơn.',
   })
-  assertEquals(dayNote({ code: 'departShifted', fromMin: 360, toMin: 310 }).text, 'Dời giờ đi sớm từ 06:00 lên 05:10 để kịp trước tối.')
-  assertEquals(dayNote({ code: 'tooLong', walkMin: 596, capMin: 480, pushOn: false }).text, 'Đi bộ 9 giờ 56 trong ngày — quá 8 giờ.')
+  assertEquals(dayNote({ code: 'departShifted', fromMin: 360, toMin: 310 })!.text, 'Dời giờ đi sớm từ 06:00 lên 05:10 để kịp trước tối.')
+  assertEquals(dayNote({ code: 'tooLong', walkMin: 596, capMin: 480, pushOn: false })!.text, 'Đi bộ 9 giờ 56 trong ngày — quá 8 giờ.')
 })
 
 const row = (itemId: string, p: Partial<ChecklistRow> = {}): ChecklistRow => ({
@@ -111,7 +111,7 @@ Deno.test('cảnh báo mới: trần theo ngày, xe sau hoàng hôn, trễ mốc
     text: 'Đi bộ 8 giờ 42 trong ngày — quá 8 giờ.',
   })
   assertEquals(
-    dayNote({ code: 'tooLong', walkMin: 640, capMin: 600, pushOn: false }).text,
+    dayNote({ code: 'tooLong', walkMin: 640, capMin: 600, pushOn: false })!.text,
     'Đi bộ 10 giờ 40 trong ngày — quá 10 giờ của ngày lên đỉnh từ lán.',
   )
   // Lố ít mà kịp trước tối: chỉ nhắc, và nói ra vì sao không chia ngày.
@@ -125,11 +125,11 @@ Deno.test('cảnh báo mới: trần theo ngày, xe sau hoàng hôn, trễ mốc
   })
   const late = { code: 'anchorLate', stopId: 'p1', targetMin: 401, etaMin: 687 } as const
   assertEquals(
-    dayNote(late, (id) => (id === 'p1' ? 'Ky Quan San' : undefined)).text,
+    dayNote(late, (id) => (id === 'p1' ? 'Ky Quan San' : undefined))!.text,
     'Ky Quan San: tới khoảng 11:27, không kịp mốc 06:41 — muốn kịp phải nghỉ đêm gần hơn.',
   )
-  assertEquals(dayNote(late).text.startsWith('tới khoảng 11:27'), true)
-  assertEquals(dayNote({ code: 'campZone', stopId: 'zone:1' }).level, 'warn')
+  assertEquals(dayNote(late)!.text.startsWith('tới khoảng 11:27'), true)
+  assertEquals(dayNote({ code: 'campZone', stopId: 'zone:1' })!.level, 'warn')
 })
 
 Deno.test('chặng xe: bước ra đường đón xe 60 m không có lối thì không cảnh báo; 400 m thì có', () => {

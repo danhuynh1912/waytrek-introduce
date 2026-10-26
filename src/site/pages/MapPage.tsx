@@ -94,7 +94,7 @@ export default function MapPage({ selected, dark }: { selected: string | null; d
         </div>
         {catalog.status === 'error' ? (
           <p className="st-explore-note">
-            Chưa tải được danh sách cung. <button type="button" className="st-text-btn" onClick={retry}>Thử lại</button>
+            Chưa tải được danh sách cung. <button type="button" className="st-text-btn" onClick={retry} data-tip="Tải lại danh sách cung">Thử lại</button>
           </p>
         ) : catalog.status === 'loading' ? (
           <ul className="st-explore-list" aria-busy="true">
@@ -133,7 +133,7 @@ function TrailRow({ t, board, active, onHover, onSelect }: {
   }, [active])
   return (
     <li ref={ref} className={`st-row${active ? ' is-active' : ''}`} onMouseEnter={() => onHover(t.id)} onMouseLeave={() => onHover(null)}>
-      <button type="button" className="st-row-link" aria-pressed={active} onClick={() => onSelect(t.id)}>
+      <button type="button" className="st-row-link" aria-pressed={active} onClick={() => onSelect(t.id)} data-tip="Xem cung này trên bản đồ, kèm thẻ xem nhanh">
         <span className="st-row-img">{t.imageUrl && <RowImage url={t.imageUrl} />}</span>
         <span className="st-row-text">
           <b>{t.name}</b>
@@ -170,7 +170,7 @@ function PreviewImage({ url }: { url: string }) {
 function Preview({ t, board, onClose }: { t: TrailSummary; board: DifficultyBoard | null; onClose(): void }) {
   return (
     <div className={`st-preview${t.imageUrl ? ' has-img' : ''}`} key={t.id}>
-      <button type="button" className="st-preview-close" onClick={onClose} aria-label="Đóng thẻ xem trước">
+      <button type="button" className="st-preview-close" onClick={onClose} aria-label="Đóng thẻ xem trước" data-tip="Đóng thẻ xem trước">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
       </button>
       {t.imageUrl && <PreviewImage url={t.imageUrl} />}
@@ -178,7 +178,9 @@ function Preview({ t, board, onClose }: { t: TrailSummary; board: DifficultyBoar
         <p className="st-preview-name">{t.name}</p>
         {t.region && <p className="st-preview-region">{t.region}</p>}
         <p className="st-preview-meta"><MetaLine t={t} board={board} /></p>
-        <Link to={sitePath({ page: 'trail', trailId: t.id, routeId: null })} className="st-btn st-btn-primary">Xem cung</Link>
+        <Link to={sitePath({ page: 'trail', trailId: t.id, routeId: null })} className="st-btn st-btn-primary" data-tip="Mở trang của cung: lộ trình, độ cao, độ khó">
+          Xem cung
+        </Link>
       </div>
     </div>
   )

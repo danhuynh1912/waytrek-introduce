@@ -94,7 +94,7 @@ export function HomePage() {
         body="Bạn chọn những đỉnh muốn leo, WayTrek tự chia chặng theo sức đi, gợi ý lán nghỉ và tính giờ xuất phát để bạn đứng trên đỉnh đúng lúc mặt trời lên."
         art={<PlanNote />}
         doodle="tent"
-        action={<a className="st-btn st-btn-primary" href="/plan">Mở trang lên kế hoạch</a>}
+        action={<a className="st-btn st-btn-primary" href="/plan" data-tip="Chọn các đỉnh muốn leo, xem giờ từng chặng và chỗ nghỉ đêm">Mở trang lên kế hoạch</a>}
       />
       <Closing />
     </div>
@@ -116,10 +116,10 @@ function Hero({ trailCount }: { trailCount: number | null }) {
             Khi vạch sóng cuối cùng tắt ở chân núi, tấm bản đồ ấy vẫn sáng trên màn hình.
           </p>
           <div className="st-cta-row">
-            <Link to="/map" className="st-btn st-btn-primary st-btn-lg">
+            <Link to="/map" className="st-btn st-btn-primary st-btn-lg" data-tip="Mở bản đồ và danh sách mọi cung núi">
               {trailCount ? `Khám phá ${trailCount} cung núi` : 'Khám phá các cung núi'}
             </Link>
-            <a className="st-btn st-btn-ghost st-btn-lg" href="#tai-app">Tải ứng dụng</a>
+            <a className="st-btn st-btn-ghost st-btn-lg" href="#tai-app" data-tip="Tới chỗ tải WayTrek cho iPhone và Android">Tải ứng dụng</a>
           </div>
           <Doodle kind="squiggle" size={72} className="st-d st-d-squiggle" />
           <Doodle kind="smiley" size={26} className="st-d st-d-smiley" />
@@ -272,11 +272,11 @@ function Popular({ state, trails, total, board, onRetry }: {
             <SplitHeading accent="Cung núi" rest="được leo nhiều nhất" />
             <p className="st-body">Thứ tự này thay đổi theo từng lượt ghi danh có thật trên WayTrek.</p>
           </div>
-          <Link to="/map" className="st-more">{total ? `Xem cả ${total} cung trên bản đồ` : 'Xem tất cả trên bản đồ'} <span aria-hidden="true">→</span></Link>
+          <Link to="/map" className="st-more" data-tip="Mở bản đồ mọi cung núi">{total ? `Xem cả ${total} cung trên bản đồ` : 'Xem tất cả trên bản đồ'} <span aria-hidden="true">→</span></Link>
         </div>
         {state === 'error' ? (
           <p className="st-error">
-            Chưa tải được danh sách cung. <button type="button" className="st-text-btn" onClick={onRetry}>Thử lại</button>
+            Chưa tải được danh sách cung. <button type="button" className="st-text-btn" onClick={onRetry} data-tip="Tải lại danh sách cung">Thử lại</button>
           </p>
         ) : (
           <div className="st-cards" aria-busy={state === 'loading'}>
@@ -343,11 +343,11 @@ function Closing() {
         <h2 className="st-h2 st-h2-plain">Lần leo tới, hãy để WayTrek đi cùng bạn.</h2>
         <p className="st-body">Ứng dụng tải về miễn phí, và tài khoản trên điện thoại dùng được ngay trên trang này.</p>
         <div className="st-stores">
-          <a className="st-store" href={STORE_URL} target="_blank" rel="noopener">
+          <a className="st-store" href={STORE_URL} target="_blank" rel="noopener" data-tip="Tải WayTrek cho iPhone">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M16.4 12.7c0-2.5 2-3.7 2.1-3.8-1.2-1.7-3-1.9-3.6-2-1.5-.2-3 .9-3.8.9s-2-.9-3.3-.9C6.1 7 4.5 8 3.6 9.5c-1.9 3.3-.5 8.1 1.4 10.8.9 1.3 2 2.8 3.4 2.7 1.4-.1 1.9-.9 3.5-.9s2.1.9 3.5.9c1.5 0 2.4-1.3 3.3-2.6 1-1.5 1.5-3 1.5-3.1-.1 0-2.9-1.1-2.8-4.6zM13.9 5.3c.7-.9 1.2-2.1 1.1-3.3-1 0-2.3.7-3 1.6-.7.8-1.3 2-1.1 3.2 1.1.1 2.3-.6 3-1.5z" /></svg>
             <span><small>Tải về trên</small><b>App Store</b></span>
           </a>
-          <a className="st-store" href={PLAY_URL} target="_blank" rel="noopener">
+          <a className="st-store" href={PLAY_URL} target="_blank" rel="noopener" data-tip="Tải WayTrek cho điện thoại Android">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M4.2 2.6c-.3.3-.4.7-.4 1.2v16.4c0 .5.1.9.4 1.2l.1.1 9.2-9.2v-.2L4.3 2.5zM16.6 15.4l-3.1-3.1v-.2l3.1-3.1.1.1 3.6 2.1c1 .6 1 1.5 0 2.1l-3.6 2.1zM16.7 15.3 13.5 12l-9.3 9.3c.3.4.9.4 1.5.1l10.9-6.1M16.7 8.7 5.7 2.5C5.1 2.2 4.5 2.2 4.2 2.6l9.3 9.4z" /></svg>
             <span><small>Tải về trên</small><b>CH Play</b></span>
           </a>

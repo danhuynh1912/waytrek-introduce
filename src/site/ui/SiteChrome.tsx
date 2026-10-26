@@ -29,13 +29,17 @@ export function SiteHeader({ page, mode, onToggleTheme }: { page: SiteRoute['pag
   return (
     <header className={`st-head${scrolled || page === 'map' ? ' is-scrolled' : ''}`}>
       <div className="st-head-in">
-        <Link to="/" className="st-brand" aria-label="WayTrek — trang chủ">
+        <Link to="/" className="st-brand" aria-label="WayTrek — trang chủ" data-tip="Về trang chủ WayTrek">
           <img src="/icon-256.png" alt="" width={28} height={28} />
           <span>WayTrek</span>
         </Link>
         <nav className="st-nav" aria-label="Mục chính">
-          <Link to="/map" className={page === 'map' || page === 'trail' ? 'is-on' : undefined}>Khám phá</Link>
-          <a href="/plan"><span className="st-nav-long">Lên kế hoạch</span><span className="st-nav-short">Kế hoạch</span></a>
+          <Link to="/map" className={page === 'map' || page === 'trail' ? 'is-on' : undefined} data-tip="Bản đồ và danh sách mọi cung núi">
+            Khám phá
+          </Link>
+          <a href="/plan" data-tip="Lên lịch từng giờ cho chuyến trek, tính trên địa hình thật">
+            <span className="st-nav-long">Lên kế hoạch</span><span className="st-nav-short">Kế hoạch</span>
+          </a>
         </nav>
         <div className="st-head-right">
           <button
@@ -43,14 +47,14 @@ export function SiteHeader({ page, mode, onToggleTheme }: { page: SiteRoute['pag
             className="st-icon-btn"
             onClick={onToggleTheme}
             aria-label={dark ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
-            title={dark ? 'Giao diện sáng' : 'Giao diện tối'}
+            data-tip={dark ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
           >
             {dark ? <Sun /> : <Moon />}
           </button>
           <Suspense fallback={<span className="st-account-slot" aria-hidden="true" />}>
             <Account />
           </Suspense>
-          <a className="st-btn st-btn-primary st-head-cta" href={STORE_URL} target="_blank" rel="noopener">Tải app</a>
+          <a className="st-btn st-btn-primary st-head-cta" href={STORE_URL} target="_blank" rel="noopener" data-tip="Mở trang WayTrek trên App Store">Tải app</a>
         </div>
       </div>
     </header>

@@ -61,12 +61,41 @@ export type Row =
     toggleFor: Waypoint | null
     /** Mọi chặng của đoạn (chỉ có ở chặng đầu, cùng `toggleFor`) — để quyết có hiện nút đi bộ / đi xe. */
     pairLegs?: ResultLeg[]
+    /** Chặng nối tới / từ một chỗ nghỉ đang ẩn (`withoutRestSuggestions`): không vẽ đường dọc — nó không nối tới điểm nào. */
+    detached?: boolean
   }
 
 export interface Timeline {
   rows: Row[]
   /** Có đoạn nào đang chờ tính. */
   pending: boolean
+}
+
+/**
+ * Chỗ nghỉ máy chủ tự gợi ý — lán tự chọn, vùng nên nghỉ. Nút "Ẩn gợi ý chỗ
+ * nghỉ" (chủ sản phẩm 26/10) ẩn chúng trên bản đồ lẫn dòng thời gian. Điểm máy
+ * chủ chèn chỉ để cho biết giờ (bắt đầu leo, lên xe) không phải chỗ nghỉ; chỗ ngủ
+ * sau chuyến xe tối hôm trước là hệ quả của ô người dùng tự bật — cả hai luôn hiện.
+ */
+export function isRestSuggestion(stop: ResultStop): boolean {
+  return stop.inserted && stop.rest && !stop.transfer
+}
+
+/**
+ * Dòng thời gian khi tắt gợi ý chỗ nghỉ: bỏ dòng của chính chỗ nghỉ và dòng
+ * "Xuất phát" từ chỗ đó ở đầu ngày sau. Tiêu đề ngày, chặng và mọi điểm người
+ * dùng chọn giữ nguyên — đêm vẫn chia đúng chỗ, chỉ không nói ngủ ở đâu. Chặng
+ * đi tới / đi từ chỗ đã ẩn giữ số liệu nhưng thôi vẽ đường dọc (`detached`).
+ */
+export function withoutRestSuggestions(rows: Row[]): Row[] {
+  const hidden = new Set(rows.flatMap((r) => (r.type === 'auto' && isRestSuggestion(r.stop) ? [r.stop.id] : [])))
+  if (hidden.size === 0) return rows
+  return rows.flatMap((r): Row[] => {
+    if (r.type === 'auto' && hidden.has(r.stop.id)) return []
+    if (r.type === 'dayStart' && hidden.has(r.day.startStopId)) return []
+    if (r.type === 'leg' && r.leg && (hidden.has(r.leg.from) || hidden.has(r.leg.to))) return [{ ...r, detached: true }]
+    return [r]
+  })
 }
 
 export function buildTimeline(

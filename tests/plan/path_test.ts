@@ -1,5 +1,5 @@
 import { assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts'
-import { pathDetails, wayTypes } from '../../src/plan/core/path.ts'
+import { draftChanged, draftPoints, pathDetails, wayTypes } from '../../src/plan/core/path.ts'
 import type { DrawPiece, PlanResult, ResultLeg } from '../../src/plan/core/types.ts'
 
 const piece = (kind: DrawPiece['kind'], distanceM: number, extra: Partial<DrawPiece> = {}): DrawPiece => ({
@@ -30,4 +30,17 @@ Deno.test('Chi tiết: tốc độ đi bộ từ tổng của máy chủ; thấp
   } as unknown as PlanResult
   assertEquals(pathDetails(r), { walkKmh: 3, highestM: 2930, lowestM: 900 })
   assertEquals(pathDetails(null), { walkKmh: null, highestM: null, lowestM: null })
+})
+
+Deno.test('danh sách "Các điểm" đang soạn: kéo, bỏ, và tự khớp khi kế hoạch đổi giữa chừng', () => {
+  const ids = ['a', 'b', 'c', 'd']
+  assertEquals(draftPoints(ids, null), ids)
+  assertEquals(draftChanged(ids, draftPoints(ids, null)), false)
+  const d = { order: ['c', 'a', 'b', 'd'], removed: ['b'] }
+  assertEquals(draftPoints(ids, d), ['c', 'a', 'd'])
+  assertEquals(draftChanged(ids, draftPoints(ids, d)), true)
+  // Thêm điểm e trên bản đồ, d bị bỏ ở chỗ khác: e nối vào cuối, d thôi.
+  assertEquals(draftPoints(['a', 'b', 'c', 'e'], d), ['c', 'a', 'e'])
+  // Xếp lại đúng thứ tự cũ: không còn gì để áp dụng.
+  assertEquals(draftChanged(ids, draftPoints(ids, { order: ids, removed: [] })), false)
 })

@@ -31,7 +31,7 @@ export default function Account() {
   if (!s) {
     return (
       <>
-        <button type="button" className="st-btn st-btn-quiet" onClick={() => setReq({})}>Đăng nhập</button>
+        <button type="button" className="st-btn st-btn-quiet" onClick={() => setReq({})} data-tip="Đăng nhập bằng tài khoản bạn dùng trên app WayTrek">Đăng nhập</button>
         <AuthDialog request={req} onClose={() => setReq(null)} />
       </>
     )
@@ -40,13 +40,22 @@ export default function Account() {
   const pic = avatarUrl(s)
   return (
     <div className="st-account" ref={box}>
-      <button type="button" className="st-avatar" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={`Tài khoản ${name}`}>
+      <button
+        type="button"
+        className="st-avatar"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-label={`Tài khoản ${name}`}
+        data-tip={`Đang đăng nhập: ${name} — bấm để xem kế hoạch, đăng xuất`}
+      >
         {pic ? <img src={pic} alt="" referrerPolicy="no-referrer" /> : <span>{name.slice(0, 1).toUpperCase()}</span>}
       </button>
       <div className={`st-menu${open ? ' is-open' : ''}`} role="menu">
         <p className="st-menu-name">{name}</p>
-        <a role="menuitem" href="/plan">Kế hoạch của tôi</a>
-        <button role="menuitem" type="button" onClick={() => { setOpen(false); void signOut() }}>Đăng xuất</button>
+        <a role="menuitem" href="/plan" data-tip="Các kế hoạch chuyến trek bạn đã lưu">Kế hoạch của tôi</a>
+        <button role="menuitem" type="button" onClick={() => { setOpen(false); void signOut() }} data-tip="Thoát tài khoản trên trình duyệt này">
+          Đăng xuất
+        </button>
       </div>
     </div>
   )

@@ -48,6 +48,8 @@ export const IBack = (p: P) => <Svg {...p}><path d="M15 6l-6 6 6 6" /></Svg>
 export const IReturn = (p: P) => <Svg {...p}><path d="M9 7 4 12l5 5" /><path d="M4 12h11a5 5 0 0 0 0-10h-2" /></Svg>
 export const IList = (p: P) => <Svg {...p}><path d="M9 6.5h11M9 12h11M9 17.5h11" /><circle cx="4.5" cy="6.5" r="0.9" /><circle cx="4.5" cy="12" r="0.9" /><circle cx="4.5" cy="17.5" r="0.9" /></Svg>
 export const IMore = (p: P) => <Svg {...p}><circle cx="5.5" cy="12" r="0.9" /><circle cx="12" cy="12" r="0.9" /><circle cx="18.5" cy="12" r="0.9" /></Svg>
+/** Tay nắm kéo thả (hai cột ba chấm). */
+export const IGrip = (p: P) => <Svg {...p}><circle cx="9" cy="6" r="0.9" /><circle cx="15" cy="6" r="0.9" /><circle cx="9" cy="12" r="0.9" /><circle cx="15" cy="12" r="0.9" /><circle cx="9" cy="18" r="0.9" /><circle cx="15" cy="18" r="0.9" /></Svg>
 export const IGoogle = ({ size = 18 }: P) => (
   <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
     <path fill="#4285F4" d="M22.5 12.2c0-.8-.1-1.4-.2-2.1H12v4h5.9a5 5 0 0 1-2.2 3.3v2.7h3.6c2-1.9 3.2-4.7 3.2-7.9z" />

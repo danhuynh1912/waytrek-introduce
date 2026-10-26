@@ -4,6 +4,7 @@ import { JoinPage } from './components/JoinPage'
 import { inviteCodeFromPath, isInvitePath } from './lib/invite'
 import { PlannerAppLazy } from './plan/lazy'
 import { isPlanPath } from './plan/ui/route'
+import { installTooltips } from './shared/tooltip'
 import SiteApp from './site/SiteApp'
 import './styles.css'
 
@@ -13,6 +14,8 @@ import './styles.css'
 // nặng ảnh. Mọi đường dẫn còn lại là waytrek.site (src/site/).
 const path = window.location.pathname
 const isPlan = isPlanPath(path)
+// Tooltip khi rê chuột lên nút / điểm bản đồ — một lần cho mọi trang.
+installTooltips()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

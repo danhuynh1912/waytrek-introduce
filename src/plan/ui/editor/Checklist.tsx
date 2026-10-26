@@ -59,7 +59,7 @@ export function Checklist({ items, error, onDone, onRename, onRemove, onAdd }: P
           aria-label="Thêm mục chuẩn bị"
           onChange={(e) => setText(e.target.value)}
         />
-        <button type="submit" className="pl-icon-btn" aria-label="Thêm" disabled={!text.trim()}>
+        <button type="submit" className="pl-icon-btn" aria-label="Thêm" disabled={!text.trim()} data-tip="Thêm mục vừa gõ vào danh sách chuẩn bị">
           <IPlus size={17} />
         </button>
       </form>
@@ -108,11 +108,11 @@ function Item({
           onKeyDown={onKey}
         />
       ) : (
-        <button type="button" className="pl-prep-label" onClick={() => { setText(item.label); setEditing(true) }} title="Bấm để sửa">
+        <button type="button" className="pl-prep-label" onClick={() => { setText(item.label); setEditing(true) }} data-tip="Bấm để sửa tên mục">
           {item.label}
         </button>
       )}
-      <button type="button" className="pl-icon-btn sm" onClick={() => onRemove(item.itemId, item.kind)} aria-label={`Xoá mục ${item.label}`}>
+      <button type="button" className="pl-icon-btn sm" onClick={() => onRemove(item.itemId, item.kind)} aria-label={`Xoá mục ${item.label}`} data-tip="Bỏ mục này khỏi danh sách">
         <IClose size={15} />
       </button>
     </div>

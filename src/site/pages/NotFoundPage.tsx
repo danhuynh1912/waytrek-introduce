@@ -12,8 +12,8 @@ export function NotFoundPage() {
       <h1 className="st-h2 st-h2-plain">Lối này chưa có trên bản đồ</h1>
       <p className="st-body">Đường dẫn bạn mở không dẫn tới trang nào của WayTrek, nhưng những cung núi thật vẫn đang chờ bạn ở trang khám phá.</p>
       <div className="st-cta-row">
-        <Link to="/map" className="st-btn st-btn-primary">Mở bản đồ cung núi</Link>
-        <Link to="/" className="st-btn st-btn-quiet">Về trang chủ</Link>
+        <Link to="/map" className="st-btn st-btn-primary" data-tip="Xem mọi cung núi đang công khai">Mở bản đồ cung núi</Link>
+        <Link to="/" className="st-btn st-btn-quiet" data-tip="Về trang chủ WayTrek">Về trang chủ</Link>
       </div>
     </div>
   )

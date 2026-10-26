@@ -3,7 +3,7 @@
 // con số "an toàn %" — đó đúng là thứ spec đã bỏ.
 
 import { clock, distance, duration, meters } from '../../shared/format.ts'
-import type { DayWarning, ResultLeg } from './types.ts'
+import type { DayWarning, PlanResult, ResultDay, ResultLeg, ResultStop } from './types.ts'
 
 /** danger: cần ra tay · warn: nên biết · info: nhắc chuẩn bị. */
 export type Level = 'danger' | 'warn' | 'info'
@@ -14,7 +14,7 @@ export interface Note {
 }
 
 /** `nameOf`: tên điểm theo id — cảnh báo nói về một điểm thì gọi đúng tên nó. */
-export function dayNote(w: DayWarning, nameOf: (id: string) => string | undefined = () => undefined): Note {
+export function dayNote(w: DayWarning, nameOf: (id: string) => string | undefined = () => undefined): Note | null {
   switch (w.code) {
     case 'afterDark':
       return {
@@ -37,6 +37,11 @@ export function dayNote(w: DayWarning, nameOf: (id: string) => string | undefine
         text: `${name ? `${name}: ` : ''}tới khoảng ${clock(w.etaMin)}, không kịp mốc ${clock(w.targetMin)} — muốn kịp phải nghỉ đêm gần hơn.`,
       }
     }
+    // Tới nơi muộn hơn giờ xuất phát đã đặt (điểm trước dời muộn): không cảnh báo
+    // — người dùng vừa tự đổi, giờ đi ở đó thành dự tính (chủ sản phẩm 26/10), và
+    // giờ đặt sẵn tự bỏ (`dropLateDepartures`).
+    case 'departLate':
+      return null
     case 'campZone':
       return { level: 'warn', text: 'Không có lán nào trên đoạn này — nghỉ đêm trong vùng nên nghỉ, mang lều.' }
     case 'noRestKnown':
@@ -59,6 +64,11 @@ export function dayNote(w: DayWarning, nameOf: (id: string) => string | undefine
       return { level: 'info', text: 'Không qua nguồn nước nào đã biết — mang đủ nước.' }
     case 'cold':
       return { level: 'info', text: `Lên tới ${meters(w.maxEleM)} — đêm có thể rất lạnh.` }
+    default:
+      // Mã của một engine mới hơn bản web đang chạy (kết quả lưu từ app mới
+      // hơn, bundle cũ trong bộ nhớ đệm): bỏ qua thì danh sách cảnh báo vẫn
+      // sắp được — trả undefined là cả màn trắng (review 26/10).
+      return null
   }
 }
 
@@ -118,4 +128,69 @@ const ORDER: Record<Level, number> = { danger: 0, warn: 1, info: 2 }
 
 export function byLevel(a: Note, b: Note): number {
   return ORDER[a.level] - ORDER[b.level]
+}
+
+/** Một hậu quả nặng của lịch: ngày đi bộ quá sức, hoặc tới nơi sau giờ an toàn. */
+type Hard =
+  | Extract<DayWarning, { code: 'afterDark' }>
+  | Extract<DayWarning, { code: 'tooLong' }>
+
+function hardOf(result: PlanResult): { day: number; w: Hard }[] {
+  return result.days.flatMap((d) =>
+    d.warnings.flatMap((w) =>
+      w.code === 'afterDark' || (w.code === 'tooLong' && !w.pushOn) ? [{ day: d.index, w }] : []
+    )
+  )
+}
+
+/** Tổng số phút lố: đi bộ quá trần + tới nơi sau giờ an toàn. */
+function excessMin(list: { w: Hard }[]): number {
+  return list.reduce((t, { w }) => t + (w.code === 'tooLong' ? w.walkMin - w.capMin : w.arriveMin - w.limitMin), 0)
+}
+
+/** Chênh dưới mức này (phút lố) coi như không nặng thêm — giờ tính lại xê dịch vài phút. */
+const STRAIN_SLACK_MIN = 15
+
+/**
+ * Lịch mới có NẶNG hơn lịch cũ không — thêm ngày đi bộ quá sức hoặc tới nơi sau
+ * giờ an toàn, hoặc lố nhiều hơn (chủ sản phẩm 26/10: kéo điểm sang ngày khác
+ * mà lịch thành quá gắt thì hỏi lại). Trả về các hậu quả của lịch mới, nói
+ * ngắn gọn từng ngày; null = không nặng thêm. Số ngày đếm như dòng thời gian
+ * (có Ngày 0 khi đi xe tối hôm trước).
+ */
+export function addedStrain(before: PlanResult | null, after: PlanResult): string[] | null {
+  const now = hardOf(after)
+  const was = before ? hardOf(before) : []
+  if (now.length <= was.length && excessMin(now) <= excessMin(was) + STRAIN_SLACK_MIN) return null
+  const first = after.days.some((d) => d.transfer) ? 0 : 1
+  return now.map(({ day, w }) =>
+    w.code === 'tooLong'
+      ? `Ngày ${day + first}: đi bộ ${duration(w.walkMin)}, quá ${duration(w.capMin)} — dễ đuối sức, dễ chấn thương.`
+      : `Ngày ${day + first}: tới nơi ${clock(w.arriveMin)}, sau giờ an toàn ${clock(w.limitMin)} — phải đi trong tối.`
+  )
+}
+
+/**
+ * Điểm vừa được đặt giờ có mặt (`match`) mà giờ đó sau giờ an toàn của ngày,
+ * VÀ điểm đó nằm trên đường đi bộ: có chặng đi bộ tới nó, hoặc đi bộ tiếp từ nó
+ * trong cùng ngày (cung trek, chân núi — ngày có cảnh báo `afterDark`). Điểm chỉ
+ * đi xe tới mà sau đó không đi bộ nữa (khách sạn, bến xe) tới muộn là việc của
+ * người dùng: không hỏi (chủ sản phẩm 26/10). null = không cần hỏi.
+ */
+export function lateArrivalOf(
+  result: PlanResult,
+  match: (s: ResultStop) => boolean,
+): { stop: ResultStop; day: ResultDay } | null {
+  const stop = result.stops.find(match)
+  if (!stop || stop.targetMin == null) return null
+  const day = result.days.find((d) => d.index === stop.day)
+  if (!day || day.limitMin == null || stop.targetMin <= day.limitMin) return null
+  if (!day.warnings.some((w) => w.code === 'afterDark')) return null
+  return walksAt(result, stop) ? { stop, day } : null
+}
+
+/** Đi bộ tới `stop`, hoặc đi bộ tiếp từ nó trong cùng ngày (không phải chỗ ngủ). */
+function walksAt(result: PlanResult, stop: ResultStop): boolean {
+  if (result.legs.some((l) => l.to === stop.id && l.transport === 'walk')) return true
+  return !stop.rest && result.legs.some((l) => l.from === stop.id && l.transport === 'walk')
 }

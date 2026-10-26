@@ -28,6 +28,28 @@ export interface Waypoint {
   restOk?: boolean
   /** Mốc: có mặt ở đây lúc nào — bình minh, hoặc phút kể từ 0h. */
   arriveAt?: ArriveAt
+  /**
+   * Giờ xuất phát người dùng đặt (phút kể từ 0h): tới sớm thì chờ. Ở chỗ nghỉ
+   * đêm là giờ đi sáng hôm sau. Điểm đầu và điểm cuối máy chủ bỏ qua.
+   */
+  departAt?: number
+  /**
+   * Số đêm người dùng tự xếp giữa điểm trước và điểm này (kéo điểm sang ngày
+   * khác — chủ sản phẩm 26/10), GỒM đêm "Nghỉ đêm ở đây" của điểm trước. Không
+   * có = máy tự chia. Máy vẫn tự chọn ngủ ở đâu trong khoảng đó. Engine ≥ 7.
+   */
+  nightsBefore?: number
+}
+
+/**
+ * Giờ người dùng đặt ở một điểm MÁY chèn (điểm bắt đầu leo, điểm lên xe, lán tự
+ * chọn, vùng nên nghỉ, chỗ ngủ sau chuyến xe đêm) — vẫn là điểm của máy (chủ sản
+ * phẩm 26/10): gắn theo `ResultStop.timeKey`; sửa kế hoạch làm điểm đó biến mất
+ * thì giờ cũng thôi tác dụng. Cùng nghĩa với `arriveAt` / `departAt` của điểm.
+ */
+export interface AutoTime {
+  arriveAt?: ArriveAt
+  departAt?: number
 }
 
 export type ArriveAt = 'sunrise' | number
@@ -55,6 +77,8 @@ export interface PlanDoc {
   dismissedRestPoiIds: string[]
   /** Đoàn không mang lều: không dựng vùng nên nghỉ. */
   noCamp?: true
+  /** Giờ đặt ở các điểm máy chèn, theo `ResultStop.timeKey` (`AutoTime`). Engine ≥ 7. */
+  autoTimes?: Record<string, AutoTime>
 }
 
 export type LegFlag =
@@ -103,6 +127,13 @@ export interface ResultStop {
   leaveByMin: number | null
   /** Mốc giờ đã giải ra phút (bình minh → giờ thật). */
   targetMin: number | null
+  /**
+   * Giờ rời điểm: tới + giờ trên đỉnh + giờ chờ. Chỗ nghỉ đêm: giờ đi sáng hôm
+   * sau. Điểm cuối: null. Bản engine cũ (< 7) không có.
+   */
+  departMin?: number | null
+  /** Phút chờ vì giờ xuất phát người dùng đặt (0 = không chờ). Bản engine cũ không có. */
+  waitMin?: number
   /** Có ở điểm nghỉ máy chủ dựng chỗ KHÔNG có lán nào. */
   /** Chỗ ngủ là lán và quanh đó có lán khác đi kịp: các lựa chọn (gồm cả chính nó). */
   restChoices?: RestChoice[]
@@ -115,11 +146,19 @@ export interface ResultStop {
   pickup?: true
   /** Lán nằm lệch lối: phải rẽ vào khoảng chừng này mét (null = ngay trên lối); bản engine cũ không có. */
   offTrailM?: number | null
+  /**
+   * Khoá của điểm MÁY chèn để đặt giờ (`PlanDoc.autoTimes`) — chỉ có ở điểm máy
+   * chèn (engine ≥ 7). Gắn với cặp điểm người dùng mà nó nằm giữa (điểm bắt
+   * đầu leo / lên xe, vùng nên nghỉ) hoặc chính cái lán, nên giữ nguyên qua các
+   * lần tính khi kế hoạch quanh đó không đổi.
+   */
+  timeKey?: string
 }
 
 /**
- * Vùng nên nghỉ: tới giờ phải dừng, người đi chậm nhất đứng ở đầu vùng, người đi
- * nhanh nhất ở cuối vùng; điểm nghỉ (nhịp của kế hoạch) nằm giữa.
+ * Vùng nên nghỉ: đoạn đoàn đi trong 1 giờ cuối (nhịp của kế hoạch) trước chỗ
+ * muộn nhất phải dừng — điểm nghỉ ở CUỐI vùng (engine ≥ 7; bản cũ: hai mép theo
+ * nhịp chậm nhất / nhanh nhất, điểm nghỉ ở giữa).
  */
 export interface RestZone {
   /** Polyline mã hoá, độ chính xác 5, thứ tự [lat, lon]. */
@@ -178,6 +217,8 @@ export type DayWarning =
    */
   | { code: 'tooLong'; walkMin: number; capMin: number; pushOn: boolean }
   | { code: 'anchorLate'; stopId: string; targetMin: number; etaMin: number }
+  /** Tới muộn hơn giờ xuất phát người dùng đặt: đi luôn lúc etaMin (sớm nhất rời được). */
+  | { code: 'departLate'; stopId: string; departAtMin: number; etaMin: number }
   | { code: 'campZone'; stopId: string }
   | { code: 'noRestKnown' }
   | { code: 'restDismissed' }

@@ -48,3 +48,34 @@ export function pathDetails(result: PlanResult | null): PathDetails {
     lowestM: eles.length ? Math.min(...eles) : null,
   }
 }
+
+/**
+ * Thay đổi đang soạn ở danh sách "Các điểm" (chủ sản phẩm 26/10): kéo đổi thứ
+ * tự, bỏ điểm — chưa đụng tới kế hoạch cho tới khi bấm "Áp dụng".
+ */
+export interface PointsDraft {
+  /** Thứ tự đang xếp (id). */
+  order: string[]
+  /** Điểm đã bấm bỏ. */
+  removed: string[]
+}
+
+/**
+ * Danh sách đang hiện = bản soạn đặt lên kế hoạch hiện tại. Kế hoạch đổi trong
+ * lúc soạn (thêm điểm trên bản đồ, bỏ điểm ở chỗ khác) thì bản soạn tự khớp
+ * lại — điểm mới nối vào cuối, điểm đã mất thì thôi — chứ không lặng lẽ mất
+ * những gì người dùng đã xếp.
+ */
+export function draftPoints(ids: readonly string[], draft: PointsDraft | null): string[] {
+  if (!draft) return [...ids]
+  const live = new Set(ids)
+  const gone = new Set(draft.removed)
+  const kept = draft.order.filter((id) => live.has(id) && !gone.has(id))
+  const seen = new Set(kept)
+  return [...kept, ...ids.filter((id) => !seen.has(id) && !gone.has(id))]
+}
+
+/** Danh sách đang hiện khác kế hoạch chưa — nút "Áp dụng" chỉ sáng khi có. */
+export function draftChanged(ids: readonly string[], shown: readonly string[]): boolean {
+  return shown.length !== ids.length || shown.some((id, k) => id !== ids[k])
+}

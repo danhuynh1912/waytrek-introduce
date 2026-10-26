@@ -6,10 +6,10 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { Session } from '@supabase/supabase-js'
 import { customItemId, editItem, MAX_ITEMS, mergeRows, viewChecklist } from '../../core/checklist'
 import type { ChecklistItem, ChecklistRow } from '../../core/checklist'
-import { newDoc, sameDoc } from '../../core/doc'
+import { dropLateDepartures, isTailTrim, newDoc, sameDoc } from '../../core/doc'
 import type { EditResult } from '../../core/doc'
 import { todayVn } from '@/shared/format'
-import { commit, initHistory, redo, undo } from '../../core/history'
+import { commit, initHistory, redo, replacePresent, undo } from '../../core/history'
 import type { History } from '../../core/history'
 import { SaveQueue } from '../../core/save-queue'
 import type { SaveEvent } from '../../core/save-queue'
@@ -89,6 +89,12 @@ export interface PlanEditor {
   resultDoc: PlanDoc | null
   /** Kết quả đang hiện là của đúng bản doc hiện tại. */
   fresh: boolean
+  /**
+   * Các dòng của panel vẫn đúng: kết quả của đúng bản này, hoặc bản này chỉ bớt
+   * điểm ở cuối so với bản đã tính (isTailTrim) — bỏ điểm cuối không làm panel
+   * mờ đi chờ tính lại; số tổng vẫn chờ máy chủ.
+   */
+  rowsFresh: boolean
   computing: boolean
   computeError: string | null
   saved: boolean
@@ -341,6 +347,18 @@ export function usePlanEditor(opts: {
     if (savedRef.current) setSave((s) => (s.kind === 'saved' || s.kind === 'saving' ? { kind: 'pending' } : s))
     settleTimer.current = setTimeout(run, SETTLE_MS)
   }, [run])
+
+  // Giờ xuất phát đặt sẵn mà nay tới nơi đã muộn hơn (điểm trước dời muộn): bỏ
+  // giờ đó, giờ đi ở đó thành dự tính (`dropLateDepartures`). Sửa thẳng vào bước
+  // lịch sử hiện tại — hoàn tác lần sửa gây ra nó thì giờ đặt sẵn về cùng.
+  useEffect(() => {
+    const c = coreRef.current
+    if (!c.result || c.resultRev !== c.rev || c.resultDoc !== c.history.present) return
+    const cleaned = dropLateDepartures(c.history.present, c.result)
+    if (cleaned === c.history.present) return
+    setCoreNow({ ...c, history: replacePresent(c.history, cleaned), rev: c.rev + 1 })
+    schedule()
+  }, [core.result, core.resultRev, schedule, setCoreNow])
 
   // ─── Nạp kế hoạch đã lưu ────────────────────────────────────────────────
   const userId = session?.user.id ?? null
@@ -595,6 +613,12 @@ export function usePlanEditor(opts: {
   )
 
   const checklist = useMemo(() => viewChecklist(core.result?.checklist ?? [], rows), [core.result?.checklist, rows])
+  const present = core.history.present
+  const fresh = core.result != null && core.resultRev === core.rev
+  const trimmed = useMemo(
+    () => core.result != null && core.resultDoc != null && isTailTrim(core.resultDoc, present),
+    [core.result, core.resultDoc, present],
+  )
 
   // ─── Gợi ý thứ tự leo ───────────────────────────────────────────────────
 
@@ -638,10 +662,12 @@ export function usePlanEditor(opts: {
     planId,
     load,
     opened,
-    doc: core.history.present,
+    doc: present,
     result: core.result,
     resultDoc: core.resultDoc,
-    fresh: core.result != null && core.resultRev === core.rev,
+    fresh,
+    // Lượt tính lại sau khi bỏ điểm cuối hỏng: thôi coi panel là mới — nó sẽ đứng đó mãi.
+    rowsFresh: fresh || (trimmed && computeError == null),
     computing,
     computeError,
     saved,

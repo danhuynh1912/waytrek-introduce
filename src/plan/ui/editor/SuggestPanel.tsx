@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
+import type { ReactNode } from 'react'
 import { distance, duration } from '@/shared/format'
 import type { Approach, SuggestOutcome, SuggestTotals } from '../../core/types'
 import { dayNote } from '../../core/warnings'
@@ -19,24 +20,37 @@ interface Props {
   onSuggest(): void
   onApply(): void
   onDismiss(): void
+  /** Nút đứng cùng hàng với nút gợi ý (ẩn / hiện gợi ý chỗ nghỉ — chủ sản phẩm 26/10). */
+  extra?: ReactNode
 }
 
 /**
  * Gợi ý thứ tự leo khi kế hoạch có từ hai đỉnh (chủ sản phẩm 24/10). Nút chỉ có
  * khi đã có điểm xuất phát; thẻ kết quả chỉ hiện sau khi bấm.
  */
-export function SuggestPanel({ readiness, state, onSuggest, onApply, onDismiss }: Props) {
-  // Chưa có điểm xuất phát thì không hiện gì (chủ sản phẩm 24/10: bỏ dòng nhắc).
-  if (readiness == null || readiness === 'needStart') return null
-  const open = state.kind === 'ready' || state.kind === 'error'
+export function SuggestPanel({ readiness, state, onSuggest, onApply, onDismiss, extra }: Props) {
+  // Chưa có điểm xuất phát thì không có nút gợi ý (chủ sản phẩm 24/10: bỏ dòng
+  // nhắc) — hàng chỉ còn nút đứng cạnh, nếu có.
+  const ready = readiness === 'ready'
+  if (!ready && !extra) return null
+  const open = ready && (state.kind === 'ready' || state.kind === 'error')
   return (
     <div className="pl-suggest">
-      {!open && (
-        <button type="button" className="pl-btn pl-btn-quiet pl-suggest-btn" onClick={onSuggest} disabled={state.kind === 'loading'}>
+      <div className="pl-suggest-row">
+      {ready && !open && (
+        <button
+          type="button"
+          className="pl-btn pl-btn-quiet pl-suggest-btn"
+          onClick={onSuggest}
+          disabled={state.kind === 'loading'}
+          data-tip="Tìm thứ tự và lối leo các đỉnh nhanh nhất — chỉ đổi kế hoạch khi bạn Áp dụng"
+        >
           <IRoute size={16} />
           {state.kind === 'loading' ? 'Đang tìm thứ tự leo…' : 'Gợi ý thứ tự leo nhanh nhất'}
         </button>
       )}
+      {extra}
+      </div>
       <AnimatePresence initial={false}>
         {open && (
           <motion.div key="card" className="pl-suggest-card" {...CARD_MOTION}>
@@ -45,8 +59,8 @@ export function SuggestPanel({ readiness, state, onSuggest, onApply, onDismiss }
                 <>
                   <p className="pl-suggest-msg">Chưa gợi ý được — {state.message}</p>
                   <div className="pl-suggest-actions">
-                    <button type="button" className="pl-btn pl-btn-quiet sm" onClick={onSuggest}>Thử lại</button>
-                    <button type="button" className="pl-btn pl-btn-quiet sm" onClick={onDismiss}>Đóng</button>
+                    <button type="button" className="pl-btn pl-btn-quiet sm" onClick={onSuggest} data-tip="Tìm lại thứ tự leo">Thử lại</button>
+                    <button type="button" className="pl-btn pl-btn-quiet sm" onClick={onDismiss} data-tip="Đóng gợi ý">Đóng</button>
                   </div>
                 </>
               ) : (
@@ -63,7 +77,7 @@ export function SuggestPanel({ readiness, state, onSuggest, onApply, onDismiss }
 function Outcome({ outcome, onApply, onDismiss }: { outcome: SuggestOutcome; onApply(): void; onDismiss(): void }) {
   const close = (
     <div className="pl-suggest-actions">
-      <button type="button" className="pl-btn pl-btn-quiet sm" onClick={onDismiss}>Đóng</button>
+      <button type="button" className="pl-btn pl-btn-quiet sm" onClick={onDismiss} data-tip="Đóng gợi ý">Đóng</button>
     </div>
   )
   switch (outcome.kind) {
@@ -84,7 +98,7 @@ function Outcome({ outcome, onApply, onDismiss }: { outcome: SuggestOutcome; onA
       return <><p className="pl-suggest-msg">Cần từ hai đỉnh trở lên.</p>{close}</>
     case 'ok': {
       const camps = outcome.result.stops.filter((s) => s.zone).length
-      const unsafe = outcome.result.days.filter((d) => d.warnings.some((w) => dayNote(w).level === 'danger')).length
+      const unsafe = outcome.result.days.filter((d) => d.warnings.some((w) => dayNote(w)?.level === 'danger')).length
       return (
         <>
           <p className="pl-suggest-title">{summary(outcome.after)}</p>
@@ -103,8 +117,8 @@ function Outcome({ outcome, onApply, onDismiss }: { outcome: SuggestOutcome; onA
             <li className="pl-muted">{before(outcome.before)}</li>
           </ul>
           <div className="pl-suggest-actions">
-            <button type="button" className="pl-btn pl-btn-primary sm" onClick={onApply}>Áp dụng</button>
-            <button type="button" className="pl-btn pl-btn-quiet sm" onClick={onDismiss}>Bỏ qua</button>
+            <button type="button" className="pl-btn pl-btn-primary sm" onClick={onApply} data-tip="Đổi kế hoạch theo thứ tự gợi ý — hoàn tác được">Áp dụng</button>
+            <button type="button" className="pl-btn pl-btn-quiet sm" onClick={onDismiss} data-tip="Giữ kế hoạch như cũ">Bỏ qua</button>
           </div>
         </>
       )

@@ -65,7 +65,7 @@ export function CoachMark({ guide, onClose }: { guide: Guide | null; onClose(): 
     >
       {place && <span className="pl-coach-arrow" style={{ left: place.arrow }} />}
       <p>{guide?.text}</p>
-      <button type="button" className="pl-coach-ok" onClick={onClose}>Đã hiểu</button>
+      <button type="button" className="pl-coach-ok" onClick={onClose} data-tip="Ẩn hướng dẫn này — không hiện lại">Đã hiểu</button>
     </div>
   )
 }

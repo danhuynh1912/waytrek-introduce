@@ -110,6 +110,44 @@ img { max-width: 100%; display: block; }
   textarea { font-size: max(16px, 1em) !important; }
 }
 
+/* ---------- Tooltip chung (src/shared/tooltip.ts) ----------
+   Mặt đặc ĐẢO màu của trang (chữ sáng trên nền tối ở giao diện sáng, và ngược
+   lại): nổi trên cả trang lẫn ảnh bản đồ mà không cần bóng đổ. Hiện/tắt và
+   trượt giữa hai nút đều ease-in-out. */
+.wt-tip {
+  position: fixed;
+  z-index: 10000;
+  inset: auto;
+  left: 0;
+  top: 0;
+  margin: 0;
+  border: 0;
+  overflow: visible;
+  max-width: min(240px, calc(100vw - 16px));
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: var(--text);
+  color: var(--bg);
+  font: 500 12px/1.4 var(--font-sans);
+  text-align: left;
+  text-wrap: pretty;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(3px);
+  transition: opacity 0.16s var(--ease-inout), transform 0.16s var(--ease-inout), visibility 0s linear 0.16s;
+}
+.wt-tip.is-below { transform: translateY(-3px); }
+.wt-tip.is-on {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition: opacity 0.16s var(--ease-inout), transform 0.16s var(--ease-inout), visibility 0s;
+}
+.wt-tip.is-on.is-moving {
+  transition: opacity 0.16s var(--ease-inout), transform 0.16s var(--ease-inout), translate 0.16s var(--ease-inout), visibility 0s;
+}
+
 /* ---------- Chuyển động ---------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01s !important; animation-duration: 0.01s !important; }

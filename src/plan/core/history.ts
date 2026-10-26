@@ -19,6 +19,15 @@ export function commit<T>(h: History<T>, next: T): History<T> {
   return { past: past.length > LIMIT ? past.slice(past.length - LIMIT) : past, present: next, future: [] }
 }
 
+/**
+ * Thay bản hiện tại mà KHÔNG thêm bước hoàn tác — máy tự sửa doc theo kết quả vừa
+ * tính (bỏ giờ xuất phát không còn đạt được). Hoàn tác bước người dùng vừa làm thì
+ * về đúng bản trước nó, gồm cả thứ máy vừa bỏ.
+ */
+export function replacePresent<T>(h: History<T>, next: T): History<T> {
+  return next === h.present ? h : { ...h, present: next }
+}
+
 export function undo<T>(h: History<T>): History<T> {
   if (h.past.length === 0) return h
   const past = h.past.slice(0, -1)

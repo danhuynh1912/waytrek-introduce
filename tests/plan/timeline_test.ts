@@ -1,8 +1,10 @@
 import { assert, assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts'
-import { relocateWaypoint, updateWaypoint } from '../../src/plan/core/doc.ts'
+import { dismissAutoStop, isTailTrim, patchSettings, relocateWaypoint, removeWaypoint, setArriveAt, setDepartAt, updateWaypoint } from '../../src/plan/core/doc.ts'
 import { decodePolyline } from '../../src/plan/core/polyline.ts'
+import { pickTapHit } from '../../src/plan/core/snap.ts'
+import { dayNote } from '../../src/plan/core/warnings.ts'
 import { eleAt, pointAlong, profileGeometry, stopOffsets } from '../../src/plan/core/profile.ts'
-import { transportChoiceShown, buildTimeline, drawLines, resultSegments } from '../../src/plan/core/timeline.ts'
+import { transportChoiceShown, buildTimeline, drawLines, isRestSuggestion, resultSegments, withoutRestSuggestions } from '../../src/plan/core/timeline.ts'
 import type { PlanDoc, PlanResult } from '../../src/plan/core/types.ts'
 
 // Kết quả THẬT của `trip-plan` đã deploy (24/10): Kỳ Quan San đi–về, đi xe sang
@@ -109,4 +111,81 @@ Deno.test('nút đi bộ / đi xe: ẩn khi cả đoạn đi bộ trên lối m�
   assertEquals(transportChoiceShown('auto', [leg('walk', 3000, 20)]), true)
   // Đã tự chọn đi xe: hiện để đổi lại.
   assertEquals(transportChoiceShown('vehicle', [leg('walk', 5800)]), true)
+})
+
+Deno.test('bỏ điểm cuối: tấm kế hoạch giữ nguyên, không phải chờ tính lại', () => {
+  const ids = fx.doc.waypoints.map((w) => w.id)
+  const trimmed = removeWaypoint(fx.doc, ids[ids.length - 1])
+  assert(isTailTrim(fx.doc, trimmed))
+  assert(isTailTrim(fx.doc, removeWaypoint(trimmed, ids[ids.length - 2])))
+  // Đổi tên kế hoạch không đụng tới giờ / đường.
+  assert(isTailTrim(fx.doc, { ...trimmed, title: 'Khác' }))
+  // Bỏ / dời điểm GIỮA, đổi thiết lập: phải tính lại.
+  assert(!isTailTrim(fx.doc, removeWaypoint(fx.doc, ids[1])))
+  const w1 = fx.doc.waypoints[1]
+  const moved = relocateWaypoint(fx.doc, w1.id, { lat: w1.latE6 / 1e6 + 0.01, lon: w1.lonE6 / 1e6, kind: w1.kind, ref: w1.ref })
+  assert(moved.ok)
+  assert(!isTailTrim(fx.doc, removeWaypoint(moved.doc, ids[ids.length - 1])))
+  assert(!isTailTrim(fx.doc, patchSettings(trimmed, { pace: fx.doc.pace + 0.1 })))
+  assert(!isTailTrim(fx.doc, dismissAutoStop(trimmed, 'lan-khac')))
+  assert(!isTailTrim(fx.doc, setDepartAt(trimmed, ids[1], 600)))
+  // Điểm bị bỏ hẹn giờ có mặt (có thể là mốc giờ đi của cả ngày), hay điểm cuối
+  // mới có giờ xuất phát (thôi được tính): giờ các điểm còn lại đổi theo.
+  const last = ids[ids.length - 1]
+  const anchored = setArriveAt(fx.doc, last, 600)
+  assert(!isTailTrim(anchored, removeWaypoint(anchored, last)))
+  const held = setDepartAt(fx.doc, ids[ids.length - 2], 600)
+  assert(!isTailTrim(held, removeWaypoint(held, last)))
+  // Không bớt gì, bớt sạch: không phải.
+  assert(!isTailTrim(fx.doc, fx.doc))
+  assert(!isTailTrim(fx.doc, { ...fx.doc, waypoints: [] }))
+  // Mọi đoạn còn lại vẫn mượn được của lần tính trước.
+  assertEquals(buildTimeline(trimmed, fx.result, fx.doc).pending, false)
+})
+
+Deno.test('tới muộn hơn giờ xuất phát đã đặt: không cảnh báo — giờ đi ở đó thành dự tính (26/10)', () => {
+  assertEquals(dayNote({ code: 'departLate', stopId: 'b', departAtMin: 420, etaMin: 455 }, () => 'Chùa Đồng'), null)
+})
+
+Deno.test('mã cảnh báo lạ (engine mới hơn bản web) bị bỏ qua, không làm sập danh sách', () => {
+  const unknown = { code: 'fromTheFuture', stopId: 'x' } as unknown as Parameters<typeof dayNote>[0]
+  assertEquals(dayNote(unknown), null)
+})
+
+Deno.test('chạm bản đồ: đỉnh thắng POI sát nó dù POI gần ngón tay hơn; cùng loại thì gần nhất', () => {
+  assertEquals(pickTapHit([['Yên Tử', 15], ['Đỉnh khác', 9]], [['Chùa Đồng', 2]]), { peak: 'Đỉnh khác', poi: null })
+  assertEquals(pickTapHit([], [['Lán A', 12], ['Lán B', 4]]), { peak: null, poi: 'Lán B' })
+  assertEquals(pickTapHit([], []), null)
+})
+
+Deno.test('ẩn gợi ý chỗ nghỉ: bỏ lán tự chọn / vùng nên nghỉ và dòng "Xuất phát" từ đó; điểm cho biết giờ giữ nguyên', () => {
+  const base = { kind: 'custom', ref: null, latE6: 0, lonE6: 0, eleM: null, day: 0, etaMin: 0, restSource: null, poiId: null, waypointIndex: -1, afterWaypointIndex: 0, leaveByMin: null, targetMin: null, departMin: null, waitMin: 0, zone: null, offTrailM: null }
+  const stop = (id: string, extra: Record<string, unknown>) => ({ ...base, id, name: id, rest: false, inserted: true, ...extra }) as unknown as PlanResult['stops'][number]
+  const lan = stop('auto:lan', { rest: true, restSource: 'auto', kind: 'poi' })
+  const zone = stop('zone:9', { rest: true, restSource: 'auto', zone: { line: '', fromM: 0, toM: 1, water: false, refName: 'x', refFromM: 0, refToM: 1 } })
+  const head = stop('trailhead:3', { trailhead: true })
+  const night = stop('transfer:2', { rest: true, restSource: 'auto', transfer: true })
+  const mine = stop('wp:b', { rest: true, restSource: 'user', inserted: false, waypointIndex: 1 })
+  assertEquals([lan, zone, head, night, mine].map(isRestSuggestion), [true, true, false, false, false])
+  const day = (index: number, startStopId: string) => ({ index, startStopId }) as unknown as PlanResult['days'][number]
+  const leg = (from: string, to: string) => ({ type: 'leg', leg: { from, to }, toggleFor: null })
+  const rows = [
+    { type: 'auto', stop: head, afterWaypointId: 'a' },
+    leg(head.id, lan.id),
+    { type: 'auto', stop: lan, afterWaypointId: 'a' },
+    { type: 'day', day: day(1, lan.id) },
+    { type: 'dayStart', day: day(1, lan.id) },
+    leg(lan.id, zone.id),
+    { type: 'auto', stop: zone, afterWaypointId: 'a' },
+    { type: 'day', day: day(2, zone.id) },
+    { type: 'dayStart', day: day(2, zone.id) },
+    { type: 'auto', stop: night, afterWaypointId: 'a' },
+  ] as Parameters<typeof withoutRestSuggestions>[0]
+  const left = withoutRestSuggestions(rows)
+  assertEquals(left.map((r) => r.type === 'auto' ? r.stop.id : r.type), ['trailhead:3', 'leg', 'day', 'leg', 'day', 'transfer:2'])
+  // Chặng tới / từ chỗ đã ẩn: còn số liệu, thôi vẽ đường dọc (không nối tới điểm nào).
+  assertEquals(left.filter((r) => r.type === 'leg').map((r) => r.type === 'leg' && r.detached), [true, true])
+  // Không có gì để ẩn: trả lại nguyên danh sách.
+  const none = rows.filter((r) => (r.type !== 'auto' || !isRestSuggestion(r.stop)) && r.type !== 'dayStart' && r.type !== 'leg')
+  assert(withoutRestSuggestions(none) === none)
 })

@@ -29,7 +29,10 @@ export default function TrailPage({ trailId, routeId, dark }: { trailId: string;
   if (detail.status === 'error') {
     return (
       <div className="st-wrap st-empty">
-        <p className="st-body">Chưa tải được thông tin cung này. <button type="button" className="st-text-btn" onClick={retry}>Thử lại</button></p>
+        <p className="st-body">
+          Chưa tải được thông tin cung này.{' '}
+          <button type="button" className="st-text-btn" onClick={retry} data-tip="Tải lại thông tin cung">Thử lại</button>
+        </p>
       </div>
     )
   }
@@ -43,7 +46,9 @@ function TrailGone() {
     <div className="st-wrap st-empty">
       <h1 className="st-h2 st-h2-plain">Cung này không còn trên bản đồ công khai</h1>
       <p className="st-body">Có thể cung đã được gộp vào một cung khác, hoặc đang chờ đội ngũ WayTrek thẩm định lại.</p>
-      <div className="st-cta-row"><Link to="/map" className="st-btn st-btn-primary">Xem các cung khác</Link></div>
+      <div className="st-cta-row">
+        <Link to="/map" className="st-btn st-btn-primary" data-tip="Mở bản đồ mọi cung núi đang công khai">Xem các cung khác</Link>
+      </div>
     </div>
   )
 }
@@ -121,8 +126,18 @@ function TrailView({ d, routeId, dark }: { d: TrailDetail; routeId: string | nul
           {t.region && <p className="st-trail-region">{t.region}</p>}
         </div>
         <div className="st-trail-actions">
-          <a className="st-btn st-btn-primary" href="/plan/new">Lên kế hoạch chuyến đi</a>
-          {onMobile && <a className="st-btn st-btn-quiet" href={appLink({ page: 'trail', trailId: t.id, routeId: route?.id ?? null })}>Mở trong WayTrek</a>}
+          <a className="st-btn st-btn-primary" href="/plan/new" data-tip="Chọn điểm, tính giờ từng chặng trên địa hình thật">
+            Lên kế hoạch chuyến đi
+          </a>
+          {onMobile && (
+            <a
+              className="st-btn st-btn-quiet"
+              href={appLink({ page: 'trail', trailId: t.id, routeId: route?.id ?? null })}
+              data-tip="Mở đúng cung này trong app WayTrek"
+            >
+              Mở trong WayTrek
+            </a>
+          )}
         </div>
       </header>
       <div className="st-wrap">
@@ -153,7 +168,14 @@ function TrailView({ d, routeId, dark }: { d: TrailDetail; routeId: string | nul
                   const on = r.id === route?.id
                   return (
                     <li key={r.id}>
-                      <button type="button" role="option" aria-selected={on} className={`st-route${on ? ' is-on' : ''}`} onClick={() => pickRoute(r)}>
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={on}
+                        className={`st-route${on ? ' is-on' : ''}`}
+                        onClick={() => pickRoute(r)}
+                        data-tip={on ? 'Lộ trình đang hiện trên bản đồ' : 'Xem lộ trình này trên bản đồ và biểu đồ độ cao'}
+                      >
                         <span className="st-route-name">
                           {r.name}
                           {r.isRecommended && <em>Gợi ý</em>}
@@ -177,7 +199,7 @@ function TrailView({ d, routeId, dark }: { d: TrailDetail; routeId: string | nul
                   <ul>
                     {g.points.map((p) => (
                       <li key={p.id}>
-                        <button type="button" className="st-poi" onClick={() => map.current?.focus({ lat: p.lat, lng: p.lng })}>
+                        <button type="button" className="st-poi" onClick={() => map.current?.focus({ lat: p.lat, lng: p.lng })} data-tip="Đưa bản đồ tới điểm này">
                           <b>{p.name}</b>
                           {p.description && <span>{p.description}</span>}
                         </button>
@@ -205,7 +227,7 @@ function TrailView({ d, routeId, dark }: { d: TrailDetail; routeId: string | nul
             <div className="st-trail-canvas" ref={mapEl} />
             {mapError && <p className="st-map-error" role="alert">{mapError}</p>}
             {geo?.status === 'error' && <p className="st-map-error" role="alert">Chưa tải được đường đi của lộ trình này.</p>}
-            <button type="button" className="st-map-fit" onClick={() => map.current?.fitRoute()} aria-label="Xem trọn lộ trình" title="Xem trọn lộ trình">
+            <button type="button" className="st-map-fit" onClick={() => map.current?.fitRoute()} aria-label="Xem trọn lộ trình" data-tip="Ôm trọn lộ trình vào khung bản đồ">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
             </button>
           </div>

@@ -55,7 +55,7 @@ export function StartPeakDialog({ ask, onClose }: { ask: StartPeakAsk | null; on
     <dialog ref={dialog} className="pl-dialog" onClose={onClose} onCancel={onClose} aria-labelledby="pl-startpeak-title">
       <div className="pl-dialog-head">
         <h2 id="pl-startpeak-title">Điểm xuất phát đang là một đỉnh núi</h2>
-        <button type="button" className="pl-icon-btn" onClick={onClose} aria-label="Đóng">
+        <button type="button" className="pl-icon-btn" onClick={onClose} aria-label="Đóng" data-tip="Đóng — giữ điểm xuất phát trên đỉnh">
           <IClose />
         </button>
       </div>
@@ -64,10 +64,16 @@ export function StartPeakDialog({ ask, onClose }: { ask: StartPeakAsk | null; on
         chọn giúp bạn chân núi lên đỉnh nhanh nhất theo các lộ trình đã có.
       </p>
       <div className="pl-dialog-actions">
-        <button type="button" className="pl-btn pl-btn-wide pl-btn-primary" onClick={pick} disabled={busy}>
+        <button
+          type="button"
+          className="pl-btn pl-btn-wide pl-btn-primary"
+          onClick={pick}
+          disabled={busy}
+          data-tip="Thêm chân núi lên đỉnh nhanh nhất làm điểm đầu tiên của kế hoạch"
+        >
           {busy ? 'Đang chọn chân núi…' : 'Chọn giúp tôi điểm xuất phát dưới chân núi'}
         </button>
-        <button type="button" className="pl-btn pl-btn-wide pl-btn-outline" onClick={onClose} disabled={busy}>
+        <button type="button" className="pl-btn pl-btn-wide pl-btn-outline" onClick={onClose} disabled={busy} data-tip="Giữ nguyên — kế hoạch bắt đầu ngay trên đỉnh">
           Tôi xuất phát từ đỉnh
         </button>
       </div>

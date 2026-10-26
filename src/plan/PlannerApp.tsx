@@ -50,7 +50,7 @@ export default function PlannerApp() {
       {oauthNote && (
         <div className="pl-banner" role="alert">
           Đăng nhập Google không thành công: {oauthNote}
-          <button type="button" className="pl-text-btn" onClick={() => setDismissedError(oauthNote)}>Đóng</button>
+          <button type="button" className="pl-text-btn" onClick={() => setDismissedError(oauthNote)} data-tip="Ẩn thông báo này">Đóng</button>
         </div>
       )}
       <AuthDialog request={authReq} onClose={() => setAuthReq(null)} />

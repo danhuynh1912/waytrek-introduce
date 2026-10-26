@@ -65,14 +65,20 @@ export function AuthDialog({ request, onClose }: { request: AuthRequest | null; 
     <dialog ref={dialog} className="wt-auth" onClose={onClose} onCancel={onClose} aria-labelledby="wt-auth-title">
       <div className="wt-auth-head">
         <h2 id="wt-auth-title">Đăng nhập WayTrek</h2>
-        <button type="button" className="wt-auth-close" onClick={onClose} aria-label="Đóng">
+        <button type="button" className="wt-auth-close" onClick={onClose} aria-label="Đóng" data-tip="Đóng, không đăng nhập">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
             <path d="M6 6l12 12M18 6 6 18" />
           </svg>
         </button>
       </div>
       <p className="wt-auth-lead">{request?.reason ?? 'Dùng đúng tài khoản bạn đăng nhập trên app WayTrek.'}</p>
-      <button type="button" className="wt-auth-btn is-outline" onClick={google} disabled={busy != null}>
+      <button
+        type="button"
+        className="wt-auth-btn is-outline"
+        onClick={google}
+        disabled={busy != null}
+        data-tip="Chuyển sang Google để đăng nhập, xong quay lại đúng trang này"
+      >
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
           <path fill="#4285F4" d="M22.5 12.2c0-.8-.1-1.4-.2-2.1H12v4h5.9a5 5 0 0 1-2.2 3.3v2.7h3.6c2-1.9 3.2-4.7 3.2-7.9z" />
           <path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.6-2.8c-1 .7-2.2 1.1-3.7 1.1-2.9 0-5.3-1.9-6.2-4.5H2.1v2.9A11 11 0 0 0 12 23z" />
@@ -91,7 +97,7 @@ export function AuthDialog({ request, onClose }: { request: AuthRequest | null; 
           <span>Mật khẩu</span>
           <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </label>
-        <button type="submit" className="wt-auth-btn is-primary" disabled={busy != null}>
+        <button type="submit" className="wt-auth-btn is-primary" disabled={busy != null} data-tip="Đăng nhập bằng email và mật khẩu của tài khoản WayTrek">
           {busy === 'email' ? 'Đang đăng nhập…' : 'Đăng nhập'}
         </button>
       </form>

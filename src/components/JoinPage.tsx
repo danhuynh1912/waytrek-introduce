@@ -31,7 +31,7 @@ export function JoinPage({ code }: { code: string | null }) {
     return (
       <main className="join">
         <p className="join-lead">Lời mời này không còn dùng được.</p>
-        <a className="join-secondary" href="/">WayTrek</a>
+        <a className="join-secondary" href="/" data-tip="Về trang chủ WayTrek">WayTrek</a>
       </main>
     )
   }
@@ -55,20 +55,20 @@ export function JoinPage({ code }: { code: string | null }) {
       <div className="join-actions">
         {platform === 'android' && (
           <>
-            <a className="join-primary" href={androidIntent(code)}>Mở WayTrek</a>
-            <a className="join-secondary" href={playWithReferrer(code)}>Tải WayTrek</a>
+            <a className="join-primary" href={androidIntent(code)} data-tip="Mở app và vào thẳng đoàn này">Mở WayTrek</a>
+            <a className="join-secondary" href={playWithReferrer(code)} data-tip="Tải app trên CH Play — mở app lần đầu là vào đoàn">Tải WayTrek</a>
           </>
         )}
         {platform === 'ios' && (
           <>
-            <button className="join-primary" type="button" onClick={downloadIos}>Tải WayTrek</button>
-            <a className="join-secondary" href={schemeLink(code)}>Mở WayTrek</a>
+            <button className="join-primary" type="button" onClick={downloadIos} data-tip="Tải app trên App Store — mở app lần đầu là vào đoàn">Tải WayTrek</button>
+            <a className="join-secondary" href={schemeLink(code)} data-tip="Đã cài app thì mở thẳng vào đoàn này">Mở WayTrek</a>
           </>
         )}
         {platform === 'other' && (
           <>
-            <a className="join-primary" href={STORE_URL}>App Store</a>
-            <a className="join-secondary" href={playWithReferrer(code)}>CH Play</a>
+            <a className="join-primary" href={STORE_URL} data-tip="Tải WayTrek cho iPhone">App Store</a>
+            <a className="join-secondary" href={playWithReferrer(code)} data-tip="Tải WayTrek cho điện thoại Android">CH Play</a>
           </>
         )}
       </div>

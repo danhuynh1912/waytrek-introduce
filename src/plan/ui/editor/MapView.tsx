@@ -47,6 +47,8 @@ export function MapView({ apiRef, dark, initialFit, trails, pois, lines, waypoin
     // Gọi qua `latest` để bản đồ dựng MỘT lần, không dựng lại mỗi lần handler đổi.
     const m = new PlanMap(box.current, {
       onMapClick: (...a) => latest.current.onMapClick(...a),
+      nextPointName: () => latest.current.nextPointName(),
+      obstructed: () => latest.current.obstructed(),
       onAddPeak: (...a) => latest.current.onAddPeak(...a),
       onAddPoi: (...a) => latest.current.onAddPoi(...a),
       onWaypointMoved: (...a) => latest.current.onWaypointMoved(...a),
@@ -131,7 +133,7 @@ export function MapView({ apiRef, dark, initialFit, trails, pois, lines, waypoin
       </ul>
       {fatal && (
         <div className="pl-map-fatal" role="alert">
-          {fatal} <button type="button" className="pl-text-btn" onClick={() => window.location.reload()}>Tải lại</button>
+          {fatal} <button type="button" className="pl-text-btn" onClick={() => window.location.reload()} data-tip="Tải lại trang để dựng lại bản đồ">Tải lại</button>
         </div>
       )}
     </div>

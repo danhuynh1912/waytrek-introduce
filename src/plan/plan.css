@@ -326,6 +326,9 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
  * xuống đầu dòng sau, neo theo nút thì tràn ra khỏi panel và bị cắt. */
 .pl-leg-body { position: relative; }
 .pl-leg-info-wrap { display: inline; }
+/* Chi tiết vùng nên nghỉ trong thẻ của nút "i". */
+.pl-zone-info p { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--text-2); }
+.pl-zone-info p + p { margin-top: 6px; }
 .pl-leg-tip {
   position: absolute; z-index: 20; left: 0; right: 0; margin-top: 22px; padding: 8px 12px 10px;
   background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
@@ -409,9 +412,10 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
 .pl-late { color: var(--red); }
 .pl-stop .pl-check { margin-top: 6px; font-size: 12.5px; }
 /* Nút sửa điểm nổi như tooltip trên góc phải khi rê chuột — không chiếm chỗ
- * trong hàng, nên tên và giờ không bao giờ bị đẩy (chủ sản phẩm 24/10). */
+ * trong hàng, nên tên và giờ không bao giờ bị đẩy (chủ sản phẩm 24/10). Nằm
+ * trong .pl-stop-body (position: relative): đáy tooltip ở mép trên của thân. */
 .pl-stop-tools {
-  position: absolute; bottom: calc(100% - 8px); right: 10px; z-index: 3;
+  position: absolute; bottom: 100%; right: 0; z-index: 3;
   display: flex; padding: 2px;
   background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
   box-shadow: 0 12px 28px -14px rgba(0, 0, 0, 0.5);
@@ -427,6 +431,9 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
 .pl-leg.is-unknown .pl-leg-line { border-left-style: dashed; border-color: var(--gilt); }
 .pl-leg.is-vehicle .pl-leg-line { border-left-style: dashed; border-color: #E8821E; }
 .pl-leg.is-pending .pl-leg-line { border-left-style: dotted; border-color: var(--text-faint); }
+/* Chặng nối tới / từ một chỗ nghỉ đang ẩn ("Ẩn gợi ý chỗ nghỉ"): đường dọc không
+ * nối tới điểm nào — mờ đi, chỉ còn số liệu (chủ sản phẩm 26/10). */
+.pl-leg.is-detached .pl-leg-line { border-color: transparent; }
 .pl-leg-body { padding: 5px 0 6px; min-width: 0; }
 .pl-leg-stats { font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .pl-seg { display: inline-flex; margin-top: 6px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; opacity: 0; transition: opacity 0.2s var(--ease-inout); }
@@ -435,16 +442,63 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
 .pl-seg button + button { border-left: 1px solid var(--border); }
 .pl-seg button.is-on { background: var(--overlay-10); color: var(--text); }
 .pl-seg-auto { display: inline-flex; align-items: center; padding: 2px 8px; border-left: 1px solid var(--border); font-size: 11px; color: var(--text-muted); }
-@media (hover: none) {
+@media (hover: none), (max-width: 759px) {
   .pl-stop-tools, .pl-seg { opacity: 1; }
-  .pl-stop { grid-template-columns: 54px 1fr auto; }
-  .pl-stop-tools { position: static; transform: none; pointer-events: auto; padding: 0; background: none; border: 0; box-shadow: none; }
+  /* Màn cảm ứng (không rê chuột được) và màn hẹp (không có chỗ cho ô nổi): nút
+   * nằm ngay trong hàng, TRƯỚC giờ — giờ của mọi dòng dạt sát mép phải, thẳng
+   * một cột (chủ sản phẩm 26/10). */
+  .pl-stop-tools { position: static; margin-left: auto; transform: none; pointer-events: auto; padding: 0; background: none; border: 0; box-shadow: none; }
+  .pl-stop-tools + .pl-times-pick, .pl-stop-tools + .pl-eta { margin-left: 0; }
 }
 .pl-return { margin: 12px 16px 0; }
 
-/* Hẹn giờ lên đỉnh */
-.pl-arrive { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12.5px; }
-.pl-arrive select {
+/* Kéo một điểm sang chỗ khác / ngày khác (chủ sản phẩm 26/10): chấm số và nút
+ * tay nắm là chỗ cầm; vạch chèn nói điểm sẽ nằm ở đâu, ngày nào. */
+.pl-timeline { position: relative; }
+.pl-dot.is-grab, .pl-grip { touch-action: none; }
+.pl-grip { cursor: grab; }
+body.pl-drag-active, body.pl-drag-active * { cursor: grabbing !important; -webkit-user-select: none; user-select: none; }
+/* motion giữ opacity của chính dòng (hiệu ứng vào / ra) — làm mờ phần bên trong. */
+.pl-row-dragged > * { opacity: 0.35; transition: opacity 0.2s var(--ease-inout); }
+.pl-drop-line {
+  position: absolute; left: 16px; right: 10px; top: 0; z-index: 4; height: 0;
+  border-top: 2px solid var(--teal); pointer-events: none;
+  opacity: 0; transition: opacity 0.16s var(--ease-inout), transform 0.16s var(--ease-inout);
+}
+.pl-drop-line.is-on { opacity: 1; }
+.pl-drop-line span {
+  position: absolute; right: 0; top: -10px; padding: 0 7px; border-radius: 4px;
+  font-size: 11px; font-weight: 700; line-height: 18px; color: var(--on-primary); background: var(--teal);
+}
+.pl-drag-ghost {
+  position: fixed; left: 0; top: 0; z-index: 60; pointer-events: none;
+  display: flex; align-items: center; gap: 8px; margin: -18px 0 0 -18px; padding-right: 12px;
+  font-weight: 600; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 22px;
+  opacity: 0; visibility: hidden; transition: opacity 0.16s var(--ease-inout), visibility 0s linear 0.16s;
+}
+.pl-drag-ghost.is-on { opacity: 1; visibility: visible; transition: opacity 0.16s var(--ease-inout), visibility 0s; }
+.pl-drag-ghost .pl-dot { width: 36px; height: 36px; font-size: 15px; }
+
+/* Hỏi lại khi lịch thành quá sức sau khi kéo */
+.pl-strain h2 { display: flex; align-items: center; gap: 8px; }
+.pl-strain h2 svg { flex: none; color: var(--red); }
+.pl-strain-list { margin: 12px 0 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13.5px; line-height: 1.45; }
+
+/* Giờ có mặt / giờ xuất phát của một điểm: bấm vào giờ mở ô nổi (chủ sản phẩm 26/10) */
+.pl-times-pick { display: inline-flex; flex: none; margin-left: auto; }
+.pl-times-btn {
+  display: inline-flex; flex-direction: column; align-items: flex-end; gap: 1px; padding: 2px 4px; margin: -2px -4px;
+  font: inherit; color: inherit; background: none; border: 1px solid transparent; border-radius: 6px; cursor: pointer;
+  transition: border-color 0.2s var(--ease-inout);
+}
+.pl-times-btn:hover, .pl-times-btn.is-on { border-color: var(--border); }
+.pl-times-btn .pl-eta { margin-left: 0; text-decoration: underline dotted color-mix(in srgb, var(--text-muted) 70%, transparent); text-underline-offset: 3px; }
+.pl-eta.is-set { color: var(--teal); text-decoration-color: color-mix(in srgb, var(--teal) 70%, transparent); }
+.pl-eta-depart { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-muted); }
+.pl-eta-depart.is-set { color: var(--teal); }
+.pl-times-tip { padding: 8px 10px 10px; }
+.pl-times-row { display: flex; align-items: center; gap: 6px; margin: 0 4px 6px; font-size: 12.5px; }
+.pl-times-row select {
   font: inherit;
   font-size: 12.5px;
   color: var(--text-muted);
@@ -454,8 +508,8 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
   padding: 2px 6px;
   transition: border-color 0.2s var(--ease-inout), color 0.2s var(--ease-inout);
 }
-.pl-arrive select.is-on { color: var(--teal); border-color: var(--teal); }
-.pl-app .pl-arrive input[type='time'] { height: 26px; padding: 0 6px; font-size: 12.5px; }
+.pl-times-row select.is-on { color: var(--teal); border-color: var(--teal); }
+.pl-app .pl-times-row input[type='time'] { height: 26px; padding: 0 6px; font-size: 12.5px; }
 
 /* Chọn lán ngủ (restChoices): nút danh sách cạnh tên, bấm mở tooltip */
 .pl-stop-body { position: relative; }
@@ -536,6 +590,27 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
 .pl-wp-badge.is-end { background: var(--teal); color: #fff; }
 .pl-wp-plus { display: inline-flex; width: 30px; justify-content: center; flex: none; }
 .pl-wp-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Viên điểm kéo được (chủ sản phẩm 26/10): cầm ở chấm số, tên đưa bản đồ tới
+ * điểm, × bỏ điểm khỏi bản đang soạn. Đuôi "Thêm điểm" nối tiếp danh sách. */
+.pl-wp-item { position: relative; list-style: none; }
+.pl-wp-item .pl-wp-pill { cursor: default; padding-right: 8px; }
+.pl-wp-item .pl-wp-name { flex: 1; padding: 6px 0; font: inherit; color: inherit; text-align: left; background: none; border: 0; cursor: pointer; }
+.pl-wp-badge.is-grab { border: 0; cursor: grab; touch-action: none; }
+.pl-wp-badge.is-grab:active { cursor: grabbing; }
+.pl-wp-del {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; width: 30px; height: 30px;
+  color: var(--text-muted); background: none; border: 0; border-radius: 50%; cursor: pointer;
+  transition: color 0.2s var(--ease-inout), background 0.2s var(--ease-inout);
+}
+.pl-wp-del:hover { color: var(--text); background: var(--overlay-10); }
+.pl-wps.is-tail { margin-top: 12px; }
+.pl-wps:empty + .pl-wps.is-tail { margin-top: 0; }
+.pl-wps:empty + .pl-wps.is-tail li::before { display: none; }
+.pl-wps.is-tail li::before {
+  content: ''; position: absolute; left: 24px; top: -13px; height: 14px;
+  border-left: 2px dashed var(--border);
+}
+.pl-wps-apply { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
 .pl-path-tools { display: flex; align-items: center; gap: 14px; margin-top: 14px; font-size: 14px; }
 .pl-switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; }
 .pl-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
@@ -574,7 +649,11 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
 
 /* ---------- Gợi ý thứ tự leo ---------- */
 .pl-suggest { border-bottom: 1px solid var(--border); }
-.pl-suggest-btn { width: calc(100% - 32px); margin: 10px 16px; justify-content: flex-start; gap: 8px; }
+/* Nút gợi ý thứ tự leo + nút ẩn / hiện gợi ý chỗ nghỉ: một hàng, cùng kiểu (chủ
+ * sản phẩm 26/10); màn hẹp không đủ chỗ thì xuống dòng. */
+.pl-suggest-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 16px; }
+.pl-suggest-row:empty { display: none; }
+.pl-suggest-btn { flex: 1 1 auto; justify-content: flex-start; gap: 8px; }
 .pl-suggest-card { overflow: hidden; }
 .pl-suggest-inner { padding: 12px 16px 14px; }
 .pl-suggest-title { margin: 0; font-weight: 700; font-size: 13px; }
@@ -826,6 +905,11 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
 
 /* ---------- Điểm + bảng nhỏ trên bản đồ (màu cố định) ---------- */
 .pl-mk { cursor: pointer; user-select: none; }
+/* Chấm của chỗ sắp thêm điểm (bấm chỗ trống → bảng nhỏ hỏi trước) */
+.pl-mk-pin {
+  width: 14px; height: 14px; border-radius: 50%; pointer-events: none;
+  background: #2F677A; box-shadow: 0 0 0 2px #FFFFFF, 0 1px 3px rgba(0, 0, 0, 0.35);
+}
 .pl-mk-wp {
   width: 24px;
   height: 24px;
@@ -840,6 +924,15 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
 }
 .pl-mk-wp.is-peak { background: #2F677A; }
 .pl-mk-wp.is-rest { box-shadow: 0 0 0 2px #B4690E, 0 1px 3px rgba(0, 0, 0, 0.35); }
+/* Đang kéo và vừa hít vào tâm một đỉnh / POI: viền teal nở ra quanh chấm.
+ * KHÔNG phóng to chấm (`scale` / `transform`): MapLibre đặt vị trí điểm bằng
+ * `transform: translate(x, y)`, và `scale` nhân luôn cả phép dịch — chấm bay lệch
+ * khỏi đỉnh theo khoảng cách tới góc bản đồ (lỗi 26/10). Viền không đụng vị trí. */
+.pl-mk-wp {
+  outline: 2px solid transparent; outline-offset: 1px;
+  transition: outline-color 0.16s var(--ease-inout), outline-offset 0.16s var(--ease-inout);
+}
+.pl-mk-wp.is-snap { outline-color: #2F677A; outline-offset: 3px; }
 .pl-mk-auto {
   width: 26px;
   height: 26px;
@@ -851,6 +944,11 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
   border: 2px dashed #B4690E;
 }
 .pl-mk-auto.is-zone { border-style: dotted; background: #FFF7EA; }
+/* "Gợi ý chỗ nghỉ" tắt: lán tự chọn và lều của vùng mờ đi cùng dải vùng nên nghỉ.
+ * Độ đục do `setOpacity` của MapLibre đặt (nó ghi đè mọi quy tắc CSS về opacity);
+ * ở đây chỉ có nhịp mờ dần và chặn chạm. */
+.pl-mk-auto { transition: opacity 0.22s var(--ease-inout); }
+.pl-mk-auto.is-hidden { pointer-events: none; }
 /* Điểm chỉ để cho biết (bắt đầu leo): viền liền màu đi bộ, không phải lán tự chọn. */
 .pl-mk-auto.is-info { border-style: solid; border-color: #2F677A; color: #2F677A; }
 .pl-popup .maplibregl-popup-content {
@@ -989,9 +1087,6 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
   .pl-settings { width: auto; }
   .pl-stats { display: none; }
   .pl-controls { top: 64px; transform: none; }
-  .pl-stop-tools, .pl-seg { opacity: 1; }
-  .pl-stop { grid-template-columns: 54px 1fr auto; }
-  .pl-stop-tools { position: static; transform: none; pointer-events: auto; padding: 0; background: none; border: 0; box-shadow: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

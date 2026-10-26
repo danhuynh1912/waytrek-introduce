@@ -38,3 +38,21 @@ export function nearestOnLines(
   })
   return best
 }
+
+/**
+ * Bấm bản đồ trúng cả đỉnh lẫn POI: ĐỈNH thắng (chủ sản phẩm 26/10 — chùa Đồng
+ * nằm sát đỉnh Yên Tử, bấm vào đỉnh mà ra chùa). Cùng loại thì cái gần chỗ bấm
+ * nhất. Mỗi phần tử là [thứ trúng, khoảng cách tới chỗ bấm (px)].
+ */
+export function pickTapHit<P, Q>(
+  peaks: readonly (readonly [P, number])[],
+  pois: readonly (readonly [Q, number])[],
+): { peak: P; poi: null } | { peak: null; poi: Q } | null {
+  const nearest = <T>(hits: readonly (readonly [T, number])[]) =>
+    hits.reduce<readonly [T, number] | null>((best, h) => (best == null || h[1] < best[1] ? h : best), null)
+  const p = nearest(peaks)
+  if (p) return { peak: p[0], poi: null }
+  const q = nearest(pois)
+  if (q) return { peak: null, poi: q[0] }
+  return null
+}

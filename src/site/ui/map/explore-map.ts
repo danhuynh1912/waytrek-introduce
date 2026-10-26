@@ -6,6 +6,7 @@ import type { GeoJSONSource, Map as MlMap } from 'maplibre-gl'
 import type { FeatureCollection } from 'geojson'
 import { LABEL_FONT, MAP_INK } from '@/shared/map/ink'
 import { ReliefMap } from '@/shared/map/relief-map'
+import { hideTipAt, showTipAt } from '@/shared/tooltip'
 import type { TrailSummary } from '../../core/trails'
 
 export interface ExploreMapHandlers {
@@ -25,6 +26,8 @@ export class ExploreMap {
   #selected: string | null = null
   #hover: string | null = null
   #fitted = false
+  /** Cung đang có tooltip trên canvas — null: không có gì. */
+  #tipId: string | null = null
 
   constructor(container: HTMLElement, dark: boolean, h: ExploreMapHandlers) {
     this.#rm = new ReliefMap(
@@ -42,10 +45,35 @@ export class ExploreMap {
       this.#map.on('mouseenter', id, () => (this.#map.getCanvas().style.cursor = 'pointer'))
       this.#map.on('mouseleave', id, () => (this.#map.getCanvas().style.cursor = ''))
     }
+    // Nhìn xa chấm không có tên (#paintState): rê chuột lên chấm là biết cung nào.
+    this.#map.on('mousemove', (e) => this.#hoverTip(e.point))
+    this.#map.on('mouseout', () => this.#clearTip())
+    this.#map.on('movestart', () => this.#clearTip())
   }
 
   destroy(): void {
+    this.#clearTip()
     this.#rm.destroy()
+  }
+
+  #hoverTip(p: { x: number; y: number }): void {
+    if (!this.#rm.ready) return
+    const f = this.#map.queryRenderedFeatures([[p.x - 4, p.y - 4], [p.x + 4, p.y + 4]], { layers: [DOT] })[0]
+      ?? this.#map.queryRenderedFeatures([p.x, p.y], { layers: [LABEL] })[0]
+    const t = f ? this.#trails.find((x) => x.id === String(f.properties?.id)) : undefined
+    if (!t || t.lat == null || t.lng == null) return this.#clearTip()
+    if (t.id === this.#tipId) return
+    // Neo vào chính cái chấm, không vào con trỏ: lắc chuột trên chấm thì chữ đứng yên.
+    const box = this.#map.getCanvas().getBoundingClientRect()
+    const s = this.#map.project([t.lng, t.lat])
+    // Chỉ nhớ "đang giải thích" khi tooltip nhận lời (con trỏ là chuột).
+    if (showTipAt(box.left + s.x, box.top + s.y, `${t.name}${t.region ? ` · ${t.region}` : ''} — bấm để xem nhanh`)) this.#tipId = t.id
+  }
+
+  #clearTip(): void {
+    if (this.#tipId == null) return
+    this.#tipId = null
+    hideTipAt()
   }
 
   setTheme(dark: boolean): void {

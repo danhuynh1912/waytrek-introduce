@@ -127,7 +127,13 @@ export function SearchDialog({
   const peakRow = (t: TrailPin, order: number | null) => (
     <li key={t.trailId} className={order != null ? 'is-picked' : ''}>
       {t.hasPeak ? (
-        <button type="button" className="pl-hit" aria-pressed={order != null} onClick={() => toggle(t.trailId)}>
+        <button
+          type="button"
+          className="pl-hit"
+          aria-pressed={order != null}
+          onClick={() => toggle(t.trailId)}
+          data-tip={order != null ? 'Bỏ chọn đỉnh này' : 'Chọn đỉnh này — thêm vào kế hoạch theo thứ tự bạn chọn'}
+        >
           <span className="pl-pick-box">{order != null ? order : null}</span>
           <span className="pl-hit-text">
             <span className="pl-hit-name">{t.name}</span>
@@ -135,7 +141,7 @@ export function SearchDialog({
           </span>
         </button>
       ) : (
-        <button type="button" className="pl-hit" onClick={() => view(t)}>
+        <button type="button" className="pl-hit" onClick={() => view(t)} data-tip="Cung chưa có toạ độ đỉnh — bấm để xem cung trên bản đồ">
           <span className="pl-pick-box is-off" aria-hidden="true" />
           <span className="pl-hit-text">
             <span className="pl-hit-name">{t.name}</span>
@@ -147,7 +153,13 @@ export function SearchDialog({
   )
   const placeRow = (p: Place, order: number | null) => (
     <li key={p.id} className={order != null ? 'is-picked' : ''}>
-      <button type="button" className="pl-hit" aria-pressed={order != null} onClick={() => togglePlace(p)}>
+      <button
+        type="button"
+        className="pl-hit"
+        aria-pressed={order != null}
+        onClick={() => togglePlace(p)}
+        data-tip={order != null ? 'Bỏ chọn địa điểm này' : 'Chọn địa điểm này để thêm vào kế hoạch'}
+      >
         <span className="pl-pick-box">{order != null ? order : null}</span>
         <span className="pl-hit-text">
           <span className="pl-hit-name">{p.name}</span>
@@ -183,12 +195,13 @@ export function SearchDialog({
                 input.current?.focus()
               }}
               aria-label="Xoá chữ đang tìm"
+              data-tip="Xoá chữ đang gõ"
             >
               <IClose size={16} />
             </button>
           )}
         </div>
-        <button type="button" className="pl-icon-btn" onClick={onClose} aria-label="Đóng hộp tìm"><IClose size={20} /></button>
+        <button type="button" className="pl-icon-btn" onClick={onClose} aria-label="Đóng hộp tìm" data-tip="Đóng, không thêm gì"><IClose size={20} /></button>
       </div>
 
       <div className="pl-picker">
@@ -206,6 +219,7 @@ export function SearchDialog({
                     className={`pl-combo${on ? ' is-on' : ''}`}
                     aria-pressed={on}
                     onClick={() => setSelected((s) => toggleCombo(s, ids))}
+                    data-tip={on ? 'Bỏ chọn cả combo' : `Chọn cả ${peaks.length} đỉnh hay được leo chung trong một chuyến`}
                   >
                     {on && <ICheck size={13} />}
                     <b>{combo.name}</b>
@@ -255,10 +269,16 @@ export function SearchDialog({
       </div>
 
       <div className="pl-picker-foot">
-        <button type="button" className="pl-btn pl-btn-quiet" onClick={() => setSelected([])} disabled={picked.length === 0}>
+        <button type="button" className="pl-btn pl-btn-quiet" onClick={() => setSelected([])} disabled={picked.length === 0} data-tip="Bỏ hết các đỉnh, địa điểm đã chọn">
           Bỏ chọn
         </button>
-        <button type="button" className="pl-btn pl-btn-primary" onClick={add} disabled={picked.length === 0}>
+        <button
+          type="button"
+          className="pl-btn pl-btn-primary"
+          onClick={add}
+          disabled={picked.length === 0}
+          data-tip={picked.length > 0 ? 'Thêm vào cuối kế hoạch theo thứ tự đã chọn (Ctrl/⌘ Enter)' : 'Chọn ít nhất một đỉnh hoặc địa điểm ở danh sách trên'}
+        >
           {picked.length > 0 ? `Thêm ${picked.length} điểm vào kế hoạch` : 'Chọn đỉnh hoặc địa điểm để thêm'}
         </button>
       </div>

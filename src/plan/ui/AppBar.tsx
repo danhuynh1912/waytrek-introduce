@@ -24,7 +24,7 @@ export function AppBar({
 }) {
   return (
     <header className="pl-top">
-      <a className="pl-brand" href="/" aria-label="WayTrek — trang chủ">
+      <a className="pl-brand" href="/" aria-label="WayTrek — trang chủ" data-tip="Về trang chủ WayTrek">
         <img src="/icon-256.png" alt="" width={26} height={26} />
         <span className="pl-brand-name">WayTrek</span>
         <span className="pl-brand-sub">Kế hoạch</span>
@@ -34,6 +34,7 @@ export function AppBar({
           <a
             className="pl-link"
             href="/plan"
+            data-tip="Mọi kế hoạch đã lưu trong tài khoản của bạn"
             onClick={(e) => {
               e.preventDefault()
               navigate('/plan')
@@ -47,12 +48,12 @@ export function AppBar({
           className="pl-icon-btn"
           onClick={toggle}
           aria-label={mode === 'dark' ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
-          title={mode === 'dark' ? 'Giao diện sáng' : 'Giao diện tối'}
+          data-tip={mode === 'dark' ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
         >
           {mode === 'dark' ? <Sun /> : <Moon />}
         </button>
         {session ? <Account session={session} /> : (
-          <button type="button" className="pl-btn pl-btn-quiet" onClick={onLogin}>Đăng nhập</button>
+          <button type="button" className="pl-btn pl-btn-quiet" onClick={onLogin} data-tip="Đăng nhập để lưu kế hoạch vào tài khoản và mở lại ở máy khác">Đăng nhập</button>
         )}
       </nav>
     </header>
@@ -79,7 +80,14 @@ function Account({ session }: { session: Session }) {
   const avatar = avatarUrl(session)
   return (
     <div className="pl-account" ref={box}>
-      <button type="button" className="pl-avatar-btn" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={`Tài khoản: ${name}`}>
+      <button
+        type="button"
+        className="pl-avatar-btn"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-label={`Tài khoản: ${name}`}
+        data-tip={`Đang đăng nhập: ${name} — bấm để xem tài khoản, đăng xuất`}
+      >
         {avatar ? <img src={avatar} alt="" referrerPolicy="no-referrer" /> : <span>{name.slice(0, 1).toUpperCase()}</span>}
       </button>
       <div className={`pl-menu${open ? ' is-open' : ''}`} role="menu">
@@ -91,6 +99,7 @@ function Account({ session }: { session: Session }) {
           type="button"
           role="menuitem"
           className="pl-menu-item"
+          data-tip="Thoát tài khoản trên trình duyệt này — kế hoạch đã lưu vẫn còn"
           onClick={() => {
             setOpen(false)
             void signOut()

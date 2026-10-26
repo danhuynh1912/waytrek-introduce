@@ -38,14 +38,14 @@ export function Toolbar(p: Props) {
   return (
     <div className="pl-toolbar">
       <div className="pl-tool-group">
-        <button type="button" className="pl-tool" onClick={p.onUndo} disabled={!p.canUndo} aria-label="Hoàn tác" title="Hoàn tác (Ctrl/⌘ Z)">
+        <button type="button" className="pl-tool" onClick={p.onUndo} disabled={!p.canUndo} aria-label="Hoàn tác" data-tip="Hoàn tác thay đổi vừa làm (Ctrl/⌘ Z)">
           <IUndo />
         </button>
-        <button type="button" className="pl-tool" onClick={p.onRedo} disabled={!p.canRedo} aria-label="Làm lại" title="Làm lại (Ctrl/⌘ ⇧ Z)">
+        <button type="button" className="pl-tool" onClick={p.onRedo} disabled={!p.canRedo} aria-label="Làm lại" data-tip="Làm lại thay đổi vừa hoàn tác (Ctrl/⌘ ⇧ Z)">
           <IRedo />
         </button>
         <span className="pl-tool-sep" />
-        <Dropdown label="Nội dung bản đồ" icon={<ILayers />}>
+        <Dropdown label="Nội dung bản đồ" icon={<ILayers />} tip="Bật, tắt lộ trình, đỉnh, lán và bóng địa hình trên bản đồ">
           {LAYER_LABELS.map(([k, label]) => (
             <label key={k} className="pl-check">
               <input type="checkbox" checked={p.layers[k]} onChange={(e) => p.onLayer(k, e.target.checked)} />
@@ -53,10 +53,17 @@ export function Toolbar(p: Props) {
             </label>
           ))}
         </Dropdown>
-        <Dropdown label="Cài đặt" icon={<ISliders />} open={p.settingsOpen} onOpen={p.onSettingsOpen} guide="settings">
+        <Dropdown
+          label="Cài đặt"
+          icon={<ISliders />}
+          open={p.settingsOpen}
+          onOpen={p.onSettingsOpen}
+          guide="settings"
+          tip="Tốc độ đi, thời gian nghỉ, giờ phải tới nơi trước tối"
+        >
           <Settings doc={p.doc} onChange={p.onSettings} />
         </Dropdown>
-        <button type="button" className="pl-tool" onClick={p.onSearch} title="Tìm đỉnh, cung">
+        <button type="button" className="pl-tool" onClick={p.onSearch} data-tip="Tìm đỉnh hoặc cung theo tên để thêm vào kế hoạch">
           <ISearch /> <span>Tìm</span>
         </button>
       </div>
@@ -68,7 +75,13 @@ export function Toolbar(p: Props) {
 function SaveButton({ save, saved, canSave, onSave }: Props) {
   if (!saved) {
     return (
-      <button type="button" className="pl-btn pl-btn-primary pl-save" onClick={onSave} disabled={!canSave}>
+      <button
+        type="button"
+        className="pl-btn pl-btn-primary pl-save"
+        onClick={onSave}
+        disabled={!canSave}
+        data-tip={canSave ? 'Lưu vào tài khoản WayTrek — mở lại được ở máy khác và trên app' : 'Thêm ít nhất một điểm rồi mới lưu được'}
+      >
         Lưu
       </button>
     )
@@ -83,6 +96,16 @@ function SaveButton({ save, saved, canSave, onSave }: Props) {
     deleted: 'Đã bị xoá',
     auth: 'Đăng nhập để lưu',
   }
+  const tip: Record<SaveState['kind'], string> = {
+    draft: 'Lưu kế hoạch vào tài khoản WayTrek',
+    pending: 'Có thay đổi mới — tự lưu sau giây lát',
+    saving: 'Đang gửi thay đổi lên tài khoản',
+    saved: 'Mọi thay đổi đã nằm trong tài khoản — tự lưu mỗi lần sửa',
+    error: 'Lần lưu vừa rồi không thành — bấm để thử lại ngay',
+    conflict: 'Kế hoạch vừa đổi trên thiết bị khác — chọn giữ bản nào trong khung kế hoạch',
+    deleted: 'Kế hoạch này đã bị xoá ở nơi khác — lưu thành kế hoạch mới trong khung kế hoạch',
+    auth: 'Phiên đăng nhập đã hết — bấm để đăng nhập lại rồi lưu tiếp',
+  }
   const actionable = save.kind === 'error' || save.kind === 'auth'
   return (
     <button
@@ -91,6 +114,7 @@ function SaveButton({ save, saved, canSave, onSave }: Props) {
       onClick={actionable ? onSave : undefined}
       aria-live="polite"
       disabled={!actionable}
+      data-tip={tip[save.kind]}
     >
       {label[save.kind]}
     </button>
@@ -98,11 +122,13 @@ function SaveButton({ save, saved, canSave, onSave }: Props) {
 }
 
 function Dropdown({
-  label, icon, children, open: openProp, onOpen, guide,
+  label, icon, children, open: openProp, onOpen, guide, tip,
 }: {
   label: string
   icon: ReactNode
   children: ReactNode
+  /** Câu giải thích khi rê chuột (tooltip chung). */
+  tip: string
   open?: boolean
   onOpen?: (open: boolean) => void
   /** Mốc cho hướng dẫn lần đầu (core/guides). */
@@ -133,6 +159,7 @@ function Dropdown({
         onClick={() => setOpen(!open)}
         aria-expanded={open}
         data-guide-anchor={guide}
+        data-tip={tip}
       >
         {icon}
         <span>{label}</span>
@@ -172,13 +199,28 @@ function Settings({ doc, onChange }: { doc: PlanDoc; onChange: Props['onSettings
           onBlur={commitPace}
         />
         <div className="pl-chips">
-          <button type="button" className={doc.pace === PACE_SLOW_GROUP ? 'is-on' : ''} onClick={() => onChange({ pace: PACE_SLOW_GROUP })}>
+          <button
+            type="button"
+            className={doc.pace === PACE_SLOW_GROUP ? 'is-on' : ''}
+            onClick={() => onChange({ pace: PACE_SLOW_GROUP })}
+            data-tip="Cho đoàn đông, có người mới leo lần đầu hay đeo balo nặng"
+          >
             Đoàn đi chậm {fmtPace(PACE_SLOW_GROUP)}
           </button>
-          <button type="button" className={doc.pace === PACE_DEFAULT ? 'is-on' : ''} onClick={() => onChange({ pace: PACE_DEFAULT })}>
+          <button
+            type="button"
+            className={doc.pace === PACE_DEFAULT ? 'is-on' : ''}
+            onClick={() => onChange({ pace: PACE_DEFAULT })}
+            data-tip="Hợp với người đeo balo trên đường núi"
+          >
             Mặc định {fmtPace(PACE_DEFAULT)}
           </button>
-          <button type="button" className={doc.pace === 1 ? 'is-on' : ''} onClick={() => onChange({ pace: 1 })}>
+          <button
+            type="button"
+            className={doc.pace === 1 ? 'is-on' : ''}
+            onClick={() => onChange({ pace: 1 })}
+            data-tip="Đúng tốc độ của công thức Tobler — người quen leo, đồ nhẹ"
+          >
             Nhanh {fmtPace(1)}
           </button>
         </div>
