@@ -3,7 +3,8 @@
 Landing page cho app WayTrek, dựng song song với `admin_web/` (cùng Vite + React + TypeScript).
 
 - `npm run dev` — chạy local (từ thư mục này). Hoặc mở qua `.claude/launch.json` (server `landing`).
-- `npm run build` — build ra `dist/`, deploy tĩnh (Vercel: có sẵn `vercel.json`).
+- `npm run build` — build ra `dist/`, deploy tĩnh. Push `main` là GitHub Action deploy lên Cloudflare Pages
+  (`.github/workflows/deploy-pages.yml`, header ở `public/_headers`).
 
 ## Cấu trúc
 

@@ -1,0 +1,12 @@
+# Cloudflare Pages — bản chép phần "headers" của vercel.json.
+# Hai file liên kết app phải là JSON, nếu không iOS/Android bỏ qua.
+/.well-known/apple-app-site-association
+  Content-Type: application/json
+/.well-known/assetlinks.json
+  Content-Type: application/json
+/j/*
+  X-Robots-Tag: noindex
+/plan/*
+  X-Robots-Tag: noindex
+/t/*
+  X-Robots-Tag: noindex

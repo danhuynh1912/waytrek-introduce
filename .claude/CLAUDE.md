@@ -1,8 +1,22 @@
 # WayTrek — trang giới thiệu (`landing_web`)
 
-Trang tĩnh giới thiệu app WayTrek: Vite + React + TypeScript, deploy Vercel
-(`vercel.json`), miền `www.waytrek.site`. Cấu trúc thư mục và cách cập nhật
-ảnh màn hình: `README.md`.
+Trang tĩnh giới thiệu app WayTrek: Vite + React + TypeScript, miền
+`www.waytrek.site`. Cấu trúc thư mục và cách cập nhật ảnh màn hình: `README.md`.
+
+**Deploy = push `main`** → GitHub Action `.github/workflows/deploy-pages.yml`
+(lint + build + `wrangler pages deploy`) lên **Cloudflare Pages**, project
+`waytrek-site`. Chuyển từ Vercel ngày 28/10/2026 (Vercel Hobby cấm dùng thương
+mại); DNS `waytrek.site` do Cloudflare quản lý.
+- Cấu hình phục vụ nằm ở `public/_headers` (Content-Type JSON cho hai file
+  liên kết app, `noindex` cho `/j/` `/plan/` `/t/`). Pages chạy chế độ SPA vì
+  `dist/` KHÔNG có `404.html` — thêm file đó là mọi đường dẫn con thành 404.
+- `waytrek.site` → `www` là một Redirect Rule của Cloudflare (không nằm trong
+  repo), cố ý CHỪA `/.well-known/`: Android xác minh App Link ở cả hai tên và
+  không chấp nhận chuyển hướng.
+- Đừng chạy `wrangler` trong thư mục này: bản 4.x tự sửa `package.json` /
+  `vite.config.ts`. Workflow chạy nó ở thư mục tạm; deploy tay thì làm y vậy.
+- `vercel.json` còn lại cho tới khi gỡ hẳn project Vercel — sửa header thì sửa
+  `_headers`, vì đó mới là thứ đang phục vụ.
 
 ⚠️ Trang này còn là **cửa vào app**, không chỉ là trang giới thiệu:
 - `public/.well-known/apple-app-site-association` + `assetlinks.json` quyết
