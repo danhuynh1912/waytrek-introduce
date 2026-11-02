@@ -43,7 +43,7 @@ function withPoints(...ids: string[]): PlanDoc {
 
 Deno.test('kế hoạch mới mang đúng mặc định của máy chủ', () => {
   const d = newDoc('2026-12-21')
-  assertEquals([d.departMin, d.pace, d.restMinPerHour, d.sunsetMarginMin, d.autoShift], [360, 0.75, 10, 60, true])
+  assertEquals([d.departMin, d.pace, d.restMinPerHour, d.sunsetMarginMin, d.autoShift], [360, 0.6, 10, 60, true])
 })
 
 Deno.test('makeWaypoint làm tròn toạ độ về E6 và cắt tên', () => {

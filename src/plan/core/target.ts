@@ -51,10 +51,10 @@ export function targetSuggestDays(target: PlanTarget): number | null {
 
 /**
  * Hộp thoại khi số ngày vừa chọn KHÔNG đi được (chủ sản phẩm 2/11: chọn 2 ngày
- * mà kế hoạch ra 5 ngày là tự mâu thuẫn — chặn ngay lúc chọn, nói lý do, một
- * nút "Đã hiểu"). null = đi được.
+ * mà kế hoạch ra 5 ngày là tự mâu thuẫn — chặn ngay lúc chọn, nói lý do, nút
+ * "Chọn N ngày" theo số máy gợi ý và nút "Đã hiểu"). null = đi được.
  */
-export function targetRefusal(target: PlanTarget): { title: string; body: string } | null {
+export function targetRefusal(target: PlanTarget): { title: string; body: string; suggestDays: number | null } | null {
   const note = targetNote(target)
   if (!note) return null
   const hint =
@@ -63,7 +63,17 @@ export function targetRefusal(target: PlanTarget): { title: string; body: string
       : target.reason === 'noRestPlace'
         ? ' Đoàn mang lều thì chia thêm được.'
         : ''
-  return { title: `Không leo được trong ${targetDaysLabel(target.days)}`, body: note + hint }
+  return {
+    title: `Không leo được trong ${targetDaysLabel(target.days)}`,
+    body: note + hint,
+    // Nút "Chọn N ngày" của hộp thoại — cùng số với nút "Gợi ý" (hết chỗ ngủ thì không có).
+    suggestDays: targetSuggestDays(target),
+  }
+}
+
+/** "Chọn 5 ngày" — nút của hộp thoại từ chối. */
+export function chooseLabel(days: number): string {
+  return `Chọn ${days} ngày`
 }
 
 /** "Gợi ý: 8 ngày 7 đêm". */

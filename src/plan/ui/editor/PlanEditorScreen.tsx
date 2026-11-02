@@ -863,7 +863,14 @@ export function PlanEditorScreen({
         )}
       </div>
       <StartPeakDialog ask={startAsk} onClose={() => setStartAsk(null)} />
-      <TargetRefusalDialog refusal={refusal} onClose={() => setRefusal(null)} />
+      <TargetRefusalDialog
+        refusal={refusal}
+        onClose={() => setRefusal(null)}
+        onChoose={(days) => {
+          setRefusal(null)
+          void pickTarget(days)
+        }}
+      />
       <LateArrivalDialog
         late={late}
         onKeep={() => setLateCheck(null)}
