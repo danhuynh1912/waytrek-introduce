@@ -2,9 +2,9 @@ import { assert, assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.t
 import { dismissAutoStop, isTailTrim, patchSettings, relocateWaypoint, removeWaypoint, setArriveAt, setDepartAt, updateWaypoint } from '../../src/plan/core/doc.ts'
 import { decodePolyline } from '../../src/shared/polyline.ts'
 import { pickTapHit } from '../../src/plan/core/snap.ts'
-import { dayNote } from '../../src/plan/core/warnings.ts'
+import { dayNote, lateSummitNote } from '../../src/plan/core/warnings.ts'
 import { eleAt, pointAlong, profileGeometry, stopOffsets } from '../../src/plan/core/profile.ts'
-import { transportChoiceShown, buildTimeline, drawLines, isRestSuggestion, resultSegments, withoutRestSuggestions } from '../../src/plan/core/timeline.ts'
+import { transportChoiceShown, buildTimeline, drawLines, foldSegments, isRestSuggestion, resultSegments, rowNotesByDay, withoutRestSuggestions } from '../../src/plan/core/timeline.ts'
 import type { PlanDoc, PlanResult } from '../../src/plan/core/types.ts'
 
 // Kết quả THẬT của `trip-plan` đã deploy (24/10): Kỳ Quan San đi–về, đi xe sang
@@ -188,4 +188,42 @@ Deno.test('ẩn gợi ý chỗ nghỉ: bỏ lán tự chọn / vùng nên nghỉ
   // Không có gì để ẩn: trả lại nguyên danh sách.
   const none = rows.filter((r) => (r.type !== 'auto' || !isRestSuggestion(r.stop)) && r.type !== 'dayStart' && r.type !== 'leg')
   assert(withoutRestSuggestions(none) === none)
+})
+
+Deno.test('đoạn giữa hai điểm gập sẵn: còn điểm, tiêu đề ngày, dòng xuất phát; mở một đoạn thì hiện đúng đoạn đó', () => {
+  const rows = buildTimeline(fx.doc, fx.result, fx.doc).rows
+  const closed = foldSegments(rows, new Set())
+  assertEquals(shape(closed.rows), [
+    'day0', 'stop:a', 'day1', 'start1', 'stop:b', 'day2', 'start2', 'stop:c', 'stop:d', 'day3', 'start3', 'stop:e', 'stop:f',
+  ])
+  // Điểm cuối kế hoạch không có đoạn sau nó, nên không có mũi tên.
+  assertEquals([...closed.segments], [
+    ['a', 'Đỉnh KQS'], ['b', 'Về bãi xe KQS'], ['c', 'Chân Lảo Thẩn'], ['d', 'Đỉnh Lảo Thẩn'], ['e', 'Điểm tự chấm ngoài lối'],
+  ])
+  const open = shape(foldSegments(rows, new Set(['a'])).rows)
+  assertEquals(open.slice(0, 8), ['day0', 'stop:a', 'leg*', 'auto:Lán nghỉ<a', 'day1', 'start1', 'leg', 'stop:b'])
+  assertEquals(open.slice(8), ['day2', 'start2', 'stop:c', 'stop:d', 'day3', 'start3', 'stop:e', 'stop:f'])
+})
+
+Deno.test('cảnh báo của chặng gom về ngày chứa nó, kèm tên hai đầu chặng (cả lán máy chèn)', () => {
+  const byDay = rowNotesByDay(buildTimeline(fx.doc, fx.result, fx.doc).rows)
+  assertEquals(byDay.get(0), [{ level: 'warn', text: 'Có đoạn dốc trên 35%', place: 'Bãi xe KQS → Lán nghỉ' }])
+  // Chặng e → f không có lối nào trên bản đồ: nằm ở ngày cuối, mức nguy hiểm.
+  const last = byDay.get(3) ?? []
+  assert(
+    last.some((n) => n.level === 'danger' && n.place === 'Đỉnh Lảo Thẩn → Điểm tự chấm ngoài lối'),
+    JSON.stringify(last),
+  )
+  // Chưa có kết quả (chưa có tiêu đề ngày nào): không có gì để gom.
+  assertEquals(rowNotesByDay(buildTimeline(fx.doc, null, null).rows).size, 0)
+})
+
+Deno.test('tới đỉnh muộn hơn giờ phải rời: cảnh báo mang tên đỉnh; còn kịp thì không', () => {
+  const stop = { id: 'p', etaMin: 800, leaveByMin: 760 } as unknown as PlanResult['stops'][number]
+  assertEquals(lateSummitNote(stop, 'Ky Quan San'), {
+    level: 'danger',
+    text: 'Giờ lên đỉnh khá muộn, trời sẽ tối khi xuống núi',
+    place: 'Ky Quan San',
+  })
+  assertEquals(lateSummitNote({ ...stop, leaveByMin: 820 }, 'Ky Quan San'), null)
 })

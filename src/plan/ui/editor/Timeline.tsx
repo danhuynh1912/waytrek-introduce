@@ -5,14 +5,14 @@ import { DEFAULT_NIGHT_TRANSFER_MIN, nightTransferOffered, restToggleAllowed } f
 import type { DaySlot } from '../../core/doc'
 import { dayLayout, isHomeSlot } from '../../core/days'
 import { clock, distance, duration, km, meters, parseClock, shortDate } from '@/shared/format'
-import { transportChoiceShown, withoutRestSuggestions } from '../../core/timeline'
+import { foldSegments, rowNotesByDay, transportChoiceShown, withoutRestSuggestions } from '../../core/timeline'
 import type { Row } from '../../core/timeline'
-import type { ArriveAt, AutoTime, RestChoice, ResultDay, ResultLeg, ResultStop, TrailPin, Transport, Waypoint } from '../../core/types'
+import type { ArriveAt, AutoTime, RestChoice, ResultDay, ResultLeg, ResultStop, Transport, Waypoint } from '../../core/types'
 import { ClockInput } from './ClockInput'
 import { useDayDrag } from './use-day-drag'
 import type { DragHandle } from './use-day-drag'
-import { byLevel, dayNote, knownNote, legFlagNotes } from '../../core/warnings'
-import type { Level, Note } from '../../core/warnings'
+import { byLevel, dayNote } from '../../core/warnings'
+import type { Note } from '../../core/warnings'
 import { ICar, ICheck, IClose, IDown, IGrip, IInfo, IList, IPeak, ITent, IUp, IWalk, IWarn } from '../icons'
 
 export interface TimelineActions {
@@ -48,7 +48,6 @@ interface Props {
   count: number
   fresh: boolean
   computeError: string | null
-  trails: ReadonlyMap<string, TrailPin>
   actions: TimelineActions
   /** Giờ xe đón tối hôm trước (doc.nightTransferMin), null = tắt. */
   nightTransferMin: number | null
@@ -98,13 +97,22 @@ function anchorOf(r: Row): string | undefined {
 }
 
 export function Timeline({
-  rows: all, count, fresh, computeError, trails, actions, nightTransferMin, firstLegWpId, departOk, showRests, dayMove, autoTimes,
+  rows: all, count, fresh, computeError, actions, nightTransferMin, firstLegWpId, departOk, showRests, dayMove, autoTimes,
 }: Props) {
   const box = useRef<HTMLDivElement>(null)
   const layout = useMemo(() => dayLayout(all), [all])
+  const notesByDay = useMemo(() => rowNotesByDay(all), [all])
+  // Đoạn giữa hai điểm gập sẵn (như app); id điểm đầu của đoạn đang mở.
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set())
   const { drag, handle, ghost } = useDayDrag(box, layout, actions.moveToDay)
   if (count === 0) return null
-  const rows = showRests ? all : withoutRestSuggestions(all)
+  const { rows, segments } = foldSegments(showRests ? all : withoutRestSuggestions(all), expanded)
+  const toggleFold = (id: string) =>
+    setExpanded((s) => {
+      const next = new Set(s)
+      if (!next.delete(id)) next.add(id)
+      return next
+    })
   // Tên + số liệu của mọi điểm, để dòng ngày nói đúng tên điểm nó nhắc tới.
   const stops = new Map<string, { name: string; info: ResultStop | null }>()
   // Điểm của doc theo id — dòng đầu ngày sửa được giờ đi khi chỗ ngủ đêm trước
@@ -134,7 +142,9 @@ export function Timeline({
             data-anchor={anchorOf(r)}
             className={r.type === 'stop' && drag?.id === r.wp.id ? 'pl-row-dragged' : undefined}
           >
-            {r.type === 'day' && <DayRow day={r.day} stops={stops} number={hasDay0 ? r.day.index : r.day.index + 1} />}
+            {r.type === 'day' && (
+              <DayRow day={r.day} stops={stops} number={hasDay0 ? r.day.index : r.day.index + 1} extra={notesByDay.get(r.day.index) ?? NO_NOTES} />
+            )}
             {r.type === 'dayStart' && (
               <DayStartRow
                 day={r.day}
@@ -153,11 +163,13 @@ export function Timeline({
                 index={r.index}
                 count={count}
                 info={r.info}
-                trails={trails}
                 departOk={departOk}
                 actions={actions}
                 grip={grip}
                 pickupFirst={hasDay0}
+                fold={segments.has(r.wp.id)
+                  ? { open: expanded.has(r.wp.id), next: segments.get(r.wp.id) ?? '', onToggle: () => toggleFold(r.wp.id) }
+                  : null}
               />
             )}
             {r.type === 'auto' && <AutoRow stop={r.stop} afterWaypointId={r.afterWaypointId} autoTimes={autoTimes} actions={actions} />}
@@ -207,23 +219,28 @@ function Notes({ notes }: { notes: Note[] }) {
       {notes.map((n, i) => (
         <li key={i} className={`pl-note pl-note-${n.level}`}>
           {n.level === 'info' ? <IInfo size={15} /> : <IWarn size={15} />}
-          <span>{n.text}</span>
+          <span>{n.place && <b className="pl-note-place">{n.place}: </b>}{n.text}</span>
         </li>
       ))}
     </ul>
   )
 }
 
+/** Ngày không có cảnh báo nào của điểm / chặng — một mảng dùng chung, khỏi tạo mới mỗi lần vẽ. */
+const NO_NOTES: Note[] = []
+
 function DayRow({
-  day, stops, number,
+  day, stops, number, extra,
 }: {
   day: ResultDay
   stops: ReadonlyMap<string, { name: string; info: ResultStop | null }>
   number: number
+  /** Cảnh báo, lưu ý của các điểm và chặng trong ngày (`rowNotesByDay`) — dòng thời gian không mang chữ cảnh báo. */
+  extra: Note[]
 }) {
   // Dòng "Xuất phát … để tới … lúc …" dưới tiêu đề ngày có mốc đã bỏ (chủ sản
   // phẩm 26/10, thừa): giờ đi nằm ngay ở điểm đầu ngày, giờ mốc ở dòng của mốc.
-  const notes = day.warnings.flatMap((w) => dayNote(w, (id) => stops.get(id)?.name) ?? []).sort(byLevel)
+  const notes = [...day.warnings.flatMap((w) => dayNote(w, (id) => stops.get(id)?.name) ?? []), ...extra].sort(byLevel)
   return (
     <section className="pl-day" aria-label={`Ngày ${day.index + 1}`}>
       <div className="pl-day-head">
@@ -354,30 +371,21 @@ function NameField({ value, onCommit, label }: { value: string; onCommit: (v: st
   )
 }
 
-function kindLine(wp: Waypoint, trails: ReadonlyMap<string, TrailPin>): string | null {
-  switch (wp.kind) {
-    case 'peak':
-      return 'Đỉnh'
-    case 'poi':
-      // Lán / điểm có sẵn: tên đã nói đủ, không dòng mô tả (chủ sản phẩm 24/10).
-      return null
-    case 'route': {
-      const t = wp.ref ? trails.get(wp.ref) : undefined
-      return t ? `Trên lộ trình ${t.name}` : 'Trên lộ trình'
-    }
-    case 'custom':
-      return null
-  }
+/**
+ * Dòng mô tả dưới tên điểm: chỉ đỉnh ("Đỉnh · 3.024 m"). Lán / điểm có sẵn (chủ
+ * sản phẩm 24/10) và điểm trên lộ trình (2/11): tên đã nói đủ.
+ */
+function kindLine(wp: Waypoint): string | null {
+  return wp.kind === 'peak' ? 'Đỉnh' : null
 }
 
 function StopRow({
-  wp, index, count, info, trails, departOk, actions, grip, pickupFirst,
+  wp, index, count, info, departOk, actions, grip, pickupFirst, fold,
 }: {
   wp: Waypoint
   index: number
   count: number
   info: ResultStop | null
-  trails: ReadonlyMap<string, TrailPin>
   departOk: boolean
   actions: TimelineActions
   /** Kéo điểm sang chỗ khác / ngày khác; null = máy chủ chưa hiểu (`dayEditSupported`). */
@@ -387,15 +395,31 @@ function StopRow({
    * sửa giờ xe đón — giờ đi sáng hôm sau sửa ở dòng "Xuất phát" đầu Ngày 1.
    */
   pickupFirst: boolean
+  /** Mũi tên thu / mở đoạn tới điểm kế tiếp — chỉ điểm có đoạn sau nó. */
+  fold: { open: boolean; next: string; onToggle(): void } | null
 }) {
   const middle = index > 0 && index < count - 1
   const userRest = wp.rest && middle
-  // Điểm tự chấm: không dòng mô tả nào (chủ sản phẩm 24/10) — kể cả độ cao.
-  const kind = kindLine(wp, trails)
+  // Điểm không phải đỉnh: không dòng mô tả nào — kể cả độ cao.
+  const kind = kindLine(wp)
   const parts = kind ? [kind, ...(info?.eleM != null ? [meters(info.eleM)] : [])] : []
+  // Giờ rời đỉnh muộn nhất; tới đỉnh đã muộn hơn giờ đó thì cảnh báo nằm ở khối của ngày.
+  const leaveBy = info?.leaveByMin != null && info.leaveByMin >= info.etaMin ? info.leaveByMin : null
   const selfMarked = userRest && (wp.kind === 'custom' || wp.kind === 'route')
   return (
     <div className={`pl-stop${wp.rest && middle ? ' is-rest' : ''}`}>
+      {fold && (
+        <button
+          type="button"
+          className={`pl-fold${fold.open ? ' is-open' : ''}`}
+          onClick={fold.onToggle}
+          aria-expanded={fold.open}
+          aria-label={`${fold.open ? 'Thu gọn' : 'Mở'} đoạn tới ${fold.next}`}
+          data-tip={`${fold.open ? 'Thu gọn' : 'Mở'} đoạn tới ${fold.next}`}
+        >
+          <IDown size={16} />
+        </button>
+      )}
       <button
         type="button"
         className={`pl-dot${wp.kind === 'peak' ? ' is-peak' : ''}${grip ? ' is-grab' : ''}`}
@@ -469,18 +493,11 @@ function StopRow({
               </TimesChooser>
             ))}
         </div>
-        {(parts.length > 0 || info?.leaveByMin != null || (info?.waitMin ?? 0) > 0) && <div className="pl-stop-sub">
+        {(parts.length > 0 || leaveBy != null || (info?.waitMin ?? 0) > 0) && <div className="pl-stop-sub">
           {wp.kind === 'peak' && <IPeak size={13} />}
           {[
             parts.length > 0 ? <span key="kind">{parts.join(' · ')}</span> : null,
-            info?.leaveByMin != null
-              ? (
-                // Tới đỉnh đã muộn hơn giờ phải rời: nói thẳng là không kịp.
-                info.leaveByMin < info.etaMin
-                  ? <span key="leave" className="pl-late">Giờ lên đỉnh khá muộn, trời sẽ tối khi xuống núi</span>
-                  : <span key="leave">rời đỉnh muộn nhất <b>{clock(info.leaveByMin)}</b></span>
-              )
-              : null,
+            leaveBy != null ? <span key="leave">rời đỉnh muộn nhất <b>{clock(leaveBy)}</b></span> : null,
             (info?.waitMin ?? 0) > 0 ? <span key="wait">chờ {duration(info!.waitMin!)}</span> : null,
           ]
             .filter((x) => x != null)
@@ -906,13 +923,9 @@ function LegRow({
   nightTransferMin?: number | null
 }) {
   const vehicle = (leg?.transport ?? toggleFor?.transport) === 'vehicle'
-  const known = leg ? knownNote(leg) : null
-  const notes = leg ? [...(known && known.level !== 'info' ? [known] : []), ...legFlagNotes(leg)] : []
   const lineKind = !leg ? 'pending' : vehicle ? 'vehicle' : leg.knownPct >= 90 ? 'known' : 'unknown'
-  // Chỉ cảnh báo nguy hiểm (không có lối) nằm ngay trên dòng; phần còn lại vào
-  // hộp mở bằng nút "i" (chủ sản phẩm 24/10).
-  const inline = notes.filter((n) => n.level === 'danger')
-  const more = notes.filter((n) => n.level !== 'danger')
+  // Dòng chặng chỉ còn số liệu: cảnh báo, lưu ý của chặng nằm ở khối của ngày
+  // (chủ sản phẩm 2/11); đi trọn trên lối đã biết thì không ghi gì, như app (28/10).
   return (
     <div className={`pl-leg is-${lineKind}${detached ? ' is-detached' : ''}`}>
       <span className="pl-leg-line" aria-hidden="true" />
@@ -925,17 +938,10 @@ function LegRow({
             {vehicle
               ? `đi xe ${duration(leg.driveMin)}${leg.moveMin - leg.driveMin >= 5 ? ` + đi bộ ${duration(leg.moveMin - leg.driveMin)}` : ''}`
               : duration(leg.moveMin)}
-            {known?.level === 'info' && <span className="pl-muted"> · {known.text.toLowerCase()}</span>}
-            {more.length > 0 && (
-              <InfoTip label={`${more.length} lưu ý về đoạn này`} title="Lưu ý về đoạn này" tone={more[0].level}>
-                <Notes notes={more} />
-              </InfoTip>
-            )}
           </div>
         ) : (
           <div className="pl-leg-stats pl-muted">{computeError ? 'Chưa tính được đoạn này' : 'Đang tính…'}</div>
         )}
-        <Notes notes={inline} />
         {toggleFor && (
           <div className="pl-leg-mode">
             <TransportToggle wp={toggleFor} resolved={leg?.transport ?? null} actions={actions} />
@@ -950,11 +956,11 @@ function LegRow({
 }
 
 /**
- * Nút "i": phần chữ phụ của một dòng (lưu ý của đoạn, chi tiết vùng nên nghỉ)
- * thu vào đây cho dòng gọn (chủ sản phẩm 24/10, 26/10). Rê chuột: thẻ hiện ngay
- * dưới dòng. Bấm (cả trên điện thoại): mở hộp.
+ * Nút "i": phần chữ phụ của một dòng (chi tiết vùng nên nghỉ) thu vào đây cho
+ * dòng gọn (chủ sản phẩm 26/10). Rê chuột: thẻ hiện ngay dưới dòng. Bấm (cả
+ * trên điện thoại): mở hộp.
  */
-function InfoTip({ label, title, tone, children }: { label: string; title: string; tone?: Level; children: ReactNode }) {
+function InfoTip({ label, title, children }: { label: string; title: string; children: ReactNode }) {
   const [open, setOpen] = useState(false)
   const dialog = useRef<HTMLDialogElement>(null)
   useEffect(() => {
@@ -968,7 +974,7 @@ function InfoTip({ label, title, tone, children }: { label: string; title: strin
       <span className="pl-leg-info-wrap">
         <button
           type="button"
-          className={`pl-leg-info${tone ? ` pl-note-${tone}` : ''}`}
+          className="pl-leg-info"
           onClick={() => setOpen(true)}
           aria-label={label}
         >

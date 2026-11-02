@@ -154,7 +154,6 @@ export function PlanEditorScreen({
     [edit, say],
   )
 
-  const trailsById = useMemo(() => new Map(trails.map((t) => [t.trailId, t])), [trails])
   const timeline = useMemo(() => buildTimeline(ed.doc, ed.result, ed.resultDoc), [ed.doc, ed.result, ed.resultDoc])
   // Có chỗ nghỉ máy chủ gợi ý thì mới có nút ẩn / hiện — tính trên MỌI dòng, kể
   // cả khi đang ẩn, để bấm hiện lại được.
@@ -709,7 +708,6 @@ export function PlanEditorScreen({
               count={count}
               fresh={ed.rowsFresh || ed.result == null}
               computeError={ed.computeError}
-              trails={trailsById}
               actions={actions}
               nightTransferMin={ed.doc.nightTransferMin ?? null}
               firstLegWpId={ed.doc.waypoints[1]?.id ?? null}

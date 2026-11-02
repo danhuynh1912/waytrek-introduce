@@ -293,8 +293,9 @@ export type TargetStatus = 'met' | 'strained' | 'impossible'
  * - `fixedNights`: đêm người dùng tự quyết đã nhiều hơn số ngày mục tiêu.
  * - `tooShort`: quãng đi không đủ dài để chia thêm ngày.
  * - `noRestPlace`: đoàn không mang lều và không còn lán / bản nào để ngủ thêm.
+ * - `overnight`: ít ngày như thế thì có ngày phải đi qua nửa đêm (`actualDays` là số ngày ít nhất không đi xuyên đêm).
  */
-export type TargetReason = 'fixedNights' | 'tooShort' | 'noRestPlace'
+export type TargetReason = 'fixedNights' | 'tooShort' | 'noRestPlace' | 'overnight'
 
 export interface PlanTarget {
   /** Số ngày mục tiêu (= doc.targetDays). */

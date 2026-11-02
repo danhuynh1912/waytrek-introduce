@@ -11,6 +11,8 @@ export type Level = 'danger' | 'warn' | 'info'
 export interface Note {
   level: Level
   text: string
+  /** Chỗ cảnh báo nói tới (điểm, hoặc "A → B" của một chặng) — có khi nó nằm ở khối của ngày, xa dòng của chỗ đó. */
+  place?: string
 }
 
 /** `nameOf`: tên điểm theo id — cảnh báo nói về một điểm thì gọi đúng tên nó. */
@@ -122,6 +124,18 @@ export function legFlagNotes(leg: ResultLeg): Note[] {
     out.push({ level: 'warn', text: 'Thiếu dữ liệu độ cao — giờ đi đã cộng thêm 30%' })
   }
   return out
+}
+
+/** Cảnh báo, lưu ý của một chặng — "có lối đã biết" không phải lưu ý. */
+export function legNotes(leg: ResultLeg, place: string): Note[] {
+  const known = knownNote(leg)
+  return [...(known && known.level !== 'info' ? [known] : []), ...legFlagNotes(leg)].map((n) => ({ ...n, place }))
+}
+
+/** Tới đỉnh đã muộn hơn giờ phải rời để kịp xuống trước tối: nói thẳng là không kịp. */
+export function lateSummitNote(stop: ResultStop, place: string): Note | null {
+  if (stop.leaveByMin == null || stop.leaveByMin >= stop.etaMin) return null
+  return { level: 'danger', text: 'Giờ lên đỉnh khá muộn, trời sẽ tối khi xuống núi', place }
 }
 
 const ORDER: Record<Level, number> = { danger: 0, warn: 1, info: 2 }

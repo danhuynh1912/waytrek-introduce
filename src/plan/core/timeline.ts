@@ -7,6 +7,8 @@
 // thẳng mờ, không bịa giờ.
 
 import type { PlanDoc, PlanResult, ResultDay, ResultLeg, ResultStop, Waypoint, DrawPiece } from './types.ts'
+import { lateSummitNote, legNotes } from './warnings.ts'
+import type { Note } from './warnings.ts'
 
 export interface Segment {
   /** Lán tự chèn nằm giữa hai điểm, theo thứ tự đi. */
@@ -96,6 +98,71 @@ export function withoutRestSuggestions(rows: Row[]): Row[] {
     if (r.type === 'leg' && r.leg && (hidden.has(r.leg.from) || hidden.has(r.leg.to))) return [{ ...r, detached: true }]
     return [r]
   })
+}
+
+export interface FoldedTimeline {
+  /** Dòng còn hiện sau khi thu các đoạn đang gập. */
+  rows: Row[]
+  /** Điểm có đoạn sau nó (theo id) → tên điểm cuối đoạn — nhãn của mũi tên thu / mở. */
+  segments: Map<string, string>
+}
+
+/**
+ * Đoạn giữa hai điểm liên tiếp — chép luật của app (`plan_timeline_view.dart`,
+ * chủ sản phẩm 28/10; web 2/11): mọi chặng / điểm máy chèn sau một điểm, tới
+ * điểm kế tiếp. Đoạn GẬP sẵn; mũi tên ở điểm đầu đoạn mở nó (`expanded`). Tiêu
+ * đề ngày và dòng "Xuất phát" nằm giữa đoạn vẫn hiện: chúng chia ngày, không
+ * phải chi tiết của đoạn.
+ */
+export function foldSegments(rows: Row[], expanded: ReadonlySet<string>): FoldedTimeline {
+  const segments = new Map<string, string>()
+  const owners = new Set<string>()
+  const segOf: (string | null)[] = []
+  let owner: string | null = null
+  for (const r of rows) {
+    let seg: string | null = null
+    if (r.type === 'stop') {
+      if (owner != null && owners.has(owner)) segments.set(owner, r.wp.name)
+      owner = r.wp.id
+    } else if ((r.type === 'leg' || r.type === 'auto') && owner != null) {
+      seg = owner
+      owners.add(owner)
+    }
+    segOf.push(seg)
+  }
+  const shown = rows.filter((_, i) => {
+    const seg = segOf[i]
+    return seg == null || expanded.has(seg)
+  })
+  return { rows: shown, segments }
+}
+
+/**
+ * Cảnh báo, lưu ý của từng điểm và từng chặng, gom về ngày chứa chúng (khoá:
+ * `ResultDay.index`). Dòng thời gian không mang chữ cảnh báo nữa — mọi thứ vào
+ * khối gập của ngày (chủ sản phẩm 2/11), kèm tên chỗ nó nói tới.
+ */
+export function rowNotesByDay(rows: Row[]): Map<number, Note[]> {
+  const names = new Map<string, string>()
+  for (const r of rows) {
+    if (r.type === 'stop') names.set(r.wp.id, r.wp.name)
+    else if (r.type === 'auto') names.set(r.stop.id, r.stop.name)
+  }
+  const out = new Map<number, Note[]>()
+  let day: number | null = null
+  const add = (notes: Note[]) => {
+    if (day != null && notes.length > 0) out.set(day, [...(out.get(day) ?? []), ...notes])
+  }
+  for (const r of rows) {
+    if (r.type === 'day') day = r.day.index
+    else if (r.type === 'stop' && r.info) {
+      const late = lateSummitNote(r.info, r.wp.name)
+      if (late) add([late])
+    } else if (r.type === 'leg' && r.leg) {
+      add(legNotes(r.leg, `${names.get(r.leg.from) ?? 'Điểm'} → ${names.get(r.leg.to) ?? 'Điểm'}`))
+    }
+  }
+  return out
 }
 
 export function buildTimeline(

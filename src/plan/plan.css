@@ -276,6 +276,7 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
 .pl-status.is-warn { color: var(--gilt); }
 .pl-status.is-danger { color: var(--red); }
 .pl-status-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 7px; }
+.pl-status-actions:first-child { margin-top: 0; }
 
 .pl-tabs { display: flex; padding: 0 10px; border-bottom: 1px solid var(--border); }
 .pl-tabs button { position: relative; padding: 10px 8px; margin: 0 2px; font-weight: 600; color: var(--text-muted); transition: color 0.2s var(--ease-inout); }
@@ -360,17 +361,31 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
 .pl-note-danger { color: var(--red); }
 .pl-note-warn { color: var(--gilt); }
 .pl-note-info { color: var(--text-muted); }
+.pl-note-place { font-weight: 600; }
 
 .pl-stop {
   position: relative;
   display: grid;
   grid-template-columns: 54px 1fr;
   gap: 10px;
-  padding: 8px 10px 8px 16px;
+  /* Lề trái 34 px: 24 px là cột mũi tên thu / mở đoạn (`.pl-fold`), như app. */
+  padding: 8px 10px 8px 34px;
   align-items: start;
   transition: background 0.2s var(--ease-inout);
 }
 .pl-stop:hover { background: var(--overlay-5); }
+/* Mũi tên thu / mở đoạn tới điểm kế tiếp, bên trái chấm (chép app — chủ sản phẩm 2/11).
+ * Cao bằng chấm cho dễ bấm; gập: mũi tên chỉ sang phải, mở: chỉ xuống. */
+.pl-fold {
+  position: absolute; left: 10px; top: 8px; width: 24px; height: 52px;
+  display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px;
+  background: none; color: var(--text-muted); cursor: pointer;
+  transition: color 0.2s var(--ease-inout), background 0.2s var(--ease-inout);
+}
+.pl-fold:hover { color: var(--text); background: var(--overlay-5); }
+.pl-fold:focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }
+.pl-fold svg { transform: rotate(-90deg); transition: transform 0.24s var(--ease-inout); }
+.pl-fold.is-open svg { transform: none; }
 .pl-dot {
   /* Gấp đôi bản cũ (26 px) — chủ sản phẩm 24/10. Cột bên trái của điểm và của
    * đoạn (54 px) phải đi cùng con số này để đường nối nằm giữa chấm. */
@@ -412,7 +427,6 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
 .pl-eta { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 600; }
 .pl-stop-sub { color: var(--text-muted); font-size: 12px; margin-top: 1px; display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
 .pl-stop-sub b { color: var(--text-2); }
-.pl-late { color: var(--red); }
 .pl-stop .pl-check { margin-top: 6px; font-size: 12.5px; }
 /* Nút sửa điểm nổi như tooltip trên góc phải khi rê chuột — không chiếm chỗ
  * trong hàng, nên tên và giờ không bao giờ bị đẩy (chủ sản phẩm 24/10). Nằm
@@ -429,7 +443,7 @@ li.is-picked .pl-pick-box { background: var(--teal); border-color: var(--teal); 
 .pl-tag { font-size: 11px; font-weight: 600; color: var(--gilt); border: 1px solid currentColor; border-radius: 4px; padding: 0 5px; line-height: 16px; }
 .pl-auto-actions { display: flex; gap: 6px; margin-top: 7px; }
 
-.pl-leg { display: grid; grid-template-columns: 54px 1fr; gap: 10px; padding: 0 16px; }
+.pl-leg { display: grid; grid-template-columns: 54px 1fr; gap: 10px; padding: 0 16px 0 34px; }
 .pl-leg-line { justify-self: center; width: 0; border-left: 2px solid var(--teal); margin: -4px 0; transition: border-color 0.22s var(--ease-inout); }
 .pl-leg.is-unknown .pl-leg-line { border-left-style: dashed; border-color: var(--gilt); }
 .pl-leg.is-vehicle .pl-leg-line { border-left-style: dashed; border-color: #E8821E; }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { distance, duration, meters } from '@/shared/format'
 import type { SettingsPatch } from '../../core/doc'
-import { targetDaysLabel, targetNote } from '../../core/target'
+import { suggestLabel, targetNote, targetSuggestDays } from '../../core/target'
 import type { PlanDoc, PlanResult } from '../../core/types'
 import { TargetDaysField } from './TargetDaysField'
 import type { SaveState } from './use-plan-editor'
@@ -198,31 +198,32 @@ function StatusLines(p: Props) {
 }
 
 /**
- * Kết quả so với thời gian leo mục tiêu (spec/48) + cách gỡ: đặt số ngày máy đề
- * xuất, mang lều, hay về tự tính. Kết quả của doc cũ (đang tính lại sau khi đổi
- * mục tiêu) thì không nói.
+ * Kết quả so với thời gian leo mục tiêu (spec/48): câu nói khi không chia được
+ * đúng số ngày, và MỘT nút gỡ — số ngày gợi ý, hoặc mang lều khi hết chỗ ngủ.
+ * Kết quả của doc cũ (đang tính lại sau khi đổi mục tiêu) thì không nói.
  */
 function targetStatus(p: Props): ReactNode {
   const target = p.result?.target
   if (!target || target.days !== p.doc.targetDays) return null
   const text = targetNote(target)
-  if (!text) return null
-  const suggest = target.suggestDays
+  const suggest = targetSuggestDays(target)
+  const tent = target.reason === 'noRestPlace' && p.doc.noCamp === true
+  if (!text && suggest == null && !tent) return null
   return (
     <div key="target" className="pl-status is-warn">
-      <p>{text}</p>
-      <div className="pl-status-actions">
+      {text && <p>{text}</p>}
+      {(suggest != null || tent) && <div className="pl-status-actions">
         {suggest != null && (
           <button
             type="button"
             className="pl-btn pl-btn-quiet sm"
             onClick={() => p.onSettings({ targetDays: suggest })}
-            data-tip="Số ngày máy tự tính để không ngày nào quá sức"
+            data-tip="Đặt thời gian leo thành số ngày này"
           >
-            Đặt {targetDaysLabel(suggest)}
+            {suggestLabel(suggest)}
           </button>
         )}
-        {target.reason === 'noRestPlace' && p.doc.noCamp && (
+        {tent && (
           <button
             type="button"
             className="pl-btn pl-btn-quiet sm"
@@ -232,15 +233,7 @@ function targetStatus(p: Props): ReactNode {
             Mang lều
           </button>
         )}
-        <button
-          type="button"
-          className="pl-btn pl-btn-quiet sm"
-          onClick={() => p.onSettings({ targetDays: null })}
-          data-tip="Để máy tự chia ngày theo sức đi an toàn"
-        >
-          Về tự tính
-        </button>
-      </div>
+      </div>}
     </div>
   )
 }
