@@ -186,6 +186,8 @@
 /* Thời gian leo (spec/48): ô chọn, "Số ngày khác…" thì thêm ô số ngay dưới. */
 .pl-target { display: grid; gap: 6px; align-content: start; }
 .pl-target .pl-num { display: inline-flex; font-size: 13px; }
+.pl-target-checking { font-size: 11.5px; color: var(--text-muted); }
+.pl-when select:disabled, .pl-target input:disabled { opacity: 0.6; cursor: progress; }
 .pl-check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--text-2); cursor: pointer; }
 .pl-check em { font-style: normal; color: var(--text-muted); }
 

@@ -49,6 +49,23 @@ export function targetSuggestDays(target: PlanTarget): number | null {
   }
 }
 
+/**
+ * Hộp thoại khi số ngày vừa chọn KHÔNG đi được (chủ sản phẩm 2/11: chọn 2 ngày
+ * mà kế hoạch ra 5 ngày là tự mâu thuẫn — chặn ngay lúc chọn, nói lý do, một
+ * nút "Đã hiểu"). null = đi được.
+ */
+export function targetRefusal(target: PlanTarget): { title: string; body: string } | null {
+  const note = targetNote(target)
+  if (!note) return null
+  const hint =
+    target.reason === 'overnight'
+      ? ` Cần ít nhất ${target.actualDays} ngày.`
+      : target.reason === 'noRestPlace'
+        ? ' Đoàn mang lều thì chia thêm được.'
+        : ''
+  return { title: `Không leo được trong ${targetDaysLabel(target.days)}`, body: note + hint }
+}
+
 /** "Gợi ý: 8 ngày 7 đêm". */
 export function suggestLabel(days: number): string {
   return `Gợi ý: ${targetDaysLabel(days)}`

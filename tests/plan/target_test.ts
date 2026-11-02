@@ -3,7 +3,7 @@
 
 import { assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts'
 import { MAX_TARGET_DAYS, newDoc, patchSettings, sameDoc } from '../../src/plan/core/doc.ts'
-import { suggestLabel, targetDaysLabel, targetNote, targetSuggestDays } from '../../src/plan/core/target.ts'
+import { suggestLabel, targetDaysLabel, targetNote, targetRefusal, targetSuggestDays } from '../../src/plan/core/target.ts'
 import type { PlanTarget, TargetReason, TargetStatus } from '../../src/plan/core/types.ts'
 
 Deno.test('đặt thời gian leo thì ghi, về tự tính thì xoá hẳn khoá (giữ băm)', () => {
@@ -57,4 +57,18 @@ Deno.test('một nút gỡ duy nhất: số ngày gợi ý — hết chỗ ngủ
   assertEquals(targetSuggestDays(target('impossible', { reason: 'noRestPlace' })), null)
   assertEquals(suggestLabel(8), 'Gợi ý: 8 ngày 7 đêm')
   assertEquals(suggestLabel(1), 'Gợi ý: 1 ngày')
+})
+
+Deno.test('chọn số ngày không đi được: hộp thoại nói lý do và số ngày đi được; đi được thì không có hộp nào', () => {
+  assertEquals(targetRefusal(target('met')), null)
+  assertEquals(targetRefusal(target('strained', { suggestDays: 4 })), null)
+  assertEquals(targetRefusal(target('impossible', { reason: 'overnight' })), {
+    title: 'Không leo được trong 2 ngày 1 đêm',
+    body: 'Leo trong 2 ngày thì phải đi xuyên đêm. Cần ít nhất 3 ngày.',
+  })
+  assertEquals(targetRefusal(target('impossible', { reason: 'tooShort' }))?.body, 'Quãng đi chỉ đủ chia tối đa 3 ngày.')
+  assertEquals(
+    targetRefusal(target('impossible', { reason: 'noRestPlace' }))?.body,
+    'Không còn lán hay bản nào để ngủ thêm một đêm. Đoàn mang lều thì chia thêm được.',
+  )
 })

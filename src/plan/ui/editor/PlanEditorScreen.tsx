@@ -40,7 +40,8 @@ import { dayLayout } from '../../core/days'
 import { buildTimeline, drawLines, isRestSuggestion } from '../../core/timeline'
 import type { PlanDoc, PlanResult, ResultStop, TrailPin, Waypoint } from '../../core/types'
 import { addedStrain, lateArrivalOf } from '../../core/warnings'
-import { fetchRoutesInBbox, fetchSnap, fetchStartTrailhead } from '../../data/api'
+import { targetRefusal } from '../../core/target'
+import { computePlan, fetchRoutesInBbox, fetchSnap, fetchStartTrailhead } from '../../data/api'
 import type { Bbox } from '../../data/api'
 import type { AuthRequest } from '@/shared/AuthDialog'
 import { IFit, ILocate, IMinus, IPlus, ITent } from '../icons'
@@ -61,6 +62,8 @@ import { StartPeakDialog } from './StartPeakDialog'
 import type { StartPeakAsk } from './StartPeakDialog'
 import { StrainDialog } from './StrainDialog'
 import { LateArrivalDialog } from './LateArrivalDialog'
+import { TargetRefusalDialog } from './TargetRefusalDialog'
+import type { TargetRefusal } from './TargetRefusalDialog'
 import { SuggestPanel } from './SuggestPanel'
 import { Timeline } from './Timeline'
 import type { TimelineActions } from './Timeline'
@@ -126,6 +129,11 @@ export function PlanEditorScreen({
   // Vừa kéo một điểm sang chỗ / ngày khác: chờ kết quả của đúng bản đó rồi so
   // với lịch trước khi kéo — nặng thêm thì hỏi lại (chủ sản phẩm 26/10).
   const [strainCheck, setStrainCheck] = useState<{ doc: PlanDoc; before: PlanResult | null } | null>(null)
+  // Thời gian leo vừa chọn: hỏi máy chủ trước khi áp — đi không được thì từ
+  // chối bằng hộp thoại, lựa chọn cũ giữ nguyên (chủ sản phẩm 2/11).
+  const [checkingTarget, setCheckingTarget] = useState<number | null>(null)
+  const [refusal, setRefusal] = useState<TargetRefusal | null>(null)
+  const targetCtl = useRef<AbortController | null>(null)
   // Vừa đặt giờ có mặt ở một điểm: chờ kết quả của đúng bản đó — tới sau giờ
   // an toàn mà phải đi bộ trong tối thì hỏi "Đồng ý / Dời sang ngày sau".
   const [lateCheck, setLateCheck] = useState<
@@ -480,6 +488,39 @@ export function PlanEditorScreen({
   }
 
   const settings = (p: SettingsPatch) => apply((doc) => patchSettings(doc, p))
+  /**
+   * Chọn thời gian leo (spec/48 §3.1): tính thử bản có số ngày đó trước. Đi
+   * không được (`impossible`) thì nói lý do, KHÔNG áp — kế hoạch không bao giờ
+   * mang nhãn "2 ngày" mà vẽ ra 5. Lỗi mạng thì cứ áp: lượt tính thường sẽ nói.
+   */
+  const pickTarget = async (days: number | null) => {
+    targetCtl.current?.abort()
+    targetCtl.current = null
+    if (days == null) {
+      setCheckingTarget(null)
+      settings({ targetDays: null })
+      return
+    }
+    const ctl = new AbortController()
+    targetCtl.current = ctl
+    setCheckingTarget(days)
+    try {
+      const result = await computePlan(patchSettings(ed.doc, { targetDays: days }), ctl.signal)
+      if (ctl.signal.aborted) return
+      const no = result.target ? targetRefusal(result.target) : null
+      if (no) setRefusal(no)
+      else settings({ targetDays: days })
+    } catch (e) {
+      if (ctl.signal.aborted) return
+      console.warn('plan: kiểm thời gian leo lỗi —', e)
+      settings({ targetDays: days })
+    } finally {
+      if (targetCtl.current === ctl) {
+        targetCtl.current = null
+        setCheckingTarget(null)
+      }
+    }
+  }
   /** "Quay về điểm xuất phát" — cùng một công tắc ở tab Waypoints và cuối tab Lịch trình. */
   const setRoundTrip = (on: boolean) =>
     apply((doc) => {
@@ -665,6 +706,8 @@ export function PlanEditorScreen({
           setTab(t)
         }}
         onSettings={settings}
+        onTarget={(days) => void pickTarget(days)}
+        checkingTarget={checkingTarget}
         onRetryCompute={ed.retryCompute}
         onRetrySave={save}
         onConflict={ed.resolveConflict}
@@ -820,6 +863,7 @@ export function PlanEditorScreen({
         )}
       </div>
       <StartPeakDialog ask={startAsk} onClose={() => setStartAsk(null)} />
+      <TargetRefusalDialog refusal={refusal} onClose={() => setRefusal(null)} />
       <LateArrivalDialog
         late={late}
         onKeep={() => setLateCheck(null)}

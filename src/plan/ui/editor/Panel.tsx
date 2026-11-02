@@ -19,8 +19,12 @@ interface Props {
   tab: PanelTab
   prepCount: { done: number; total: number }
   onTab(t: PanelTab): void
-  /** Sửa cài đặt chung: tên, ngày bắt đầu, thời gian leo, mang lều. */
+  /** Sửa cài đặt chung: tên, ngày bắt đầu, mang lều. */
   onSettings(p: SettingsPatch): void
+  /** Chọn thời gian leo — hỏi máy chủ trước, đi không được thì từ chối (spec/48 §3.1); null = máy tự tính. */
+  onTarget(days: number | null): void
+  /** Số ngày đang được hỏi máy chủ trước khi áp; null = không hỏi gì. */
+  checkingTarget: number | null
   onRetryCompute(): void
   onRetrySave(): void
   onConflict(pick: 'mine' | 'theirs'): void
@@ -53,7 +57,7 @@ export function Panel(p: Props) {
               onChange={(e) => e.target.value && p.onSettings({ startDate: e.target.value })}
             />
           </label>
-          <TargetDaysField value={p.doc.targetDays ?? null} onChange={(targetDays) => p.onSettings({ targetDays })} />
+          <TargetDaysField value={p.doc.targetDays ?? null} checking={p.checkingTarget} onChange={p.onTarget} />
         </div>
       </div>
       <StatusLines {...p} />
@@ -217,7 +221,7 @@ function targetStatus(p: Props): ReactNode {
           <button
             type="button"
             className="pl-btn pl-btn-quiet sm"
-            onClick={() => p.onSettings({ targetDays: suggest })}
+            onClick={() => p.onTarget(suggest)}
             data-tip="Đặt thời gian leo thành số ngày này"
           >
             {suggestLabel(suggest)}
