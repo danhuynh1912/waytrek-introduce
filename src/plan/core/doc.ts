@@ -9,9 +9,9 @@ export const MAX_WAYPOINTS = 40
 const LAT_MIN = 6, LAT_MAX = 26, LON_MIN = 100, LON_MAX = 112
 export const PACE_MIN = 0.4
 export const PACE_MAX = 1.5
-export const PACE_DEFAULT = 0.75
+export const PACE_DEFAULT = 0.6
 /** Nút nhanh "Đoàn đi chậm" (spec/43 §8). */
-export const PACE_SLOW_GROUP = 0.6
+export const PACE_SLOW_GROUP = 0.5
 /** Giờ đi mặc định 06:00 (spec/43 §3.5). */
 export const DEPART_DEFAULT = 6 * 60
 
