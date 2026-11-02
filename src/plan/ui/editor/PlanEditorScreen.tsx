@@ -665,8 +665,7 @@ export function PlanEditorScreen({
           if (t !== 'path') setPointsDraft(null)
           setTab(t)
         }}
-        onTitle={(v) => settings({ title: v })}
-        onDate={(v) => settings({ startDate: v })}
+        onSettings={settings}
         onRetryCompute={ed.retryCompute}
         onRetrySave={save}
         onConflict={ed.resolveConflict}

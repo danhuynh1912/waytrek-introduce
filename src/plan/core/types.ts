@@ -79,6 +79,12 @@ export interface PlanDoc {
   noCamp?: true
   /** Giờ đặt ở các điểm máy chèn, theo `ResultStop.timeKey` (`AutoTime`). Engine ≥ 7. */
   autoTimes?: Record<string, AutoTime>
+  /**
+   * Thời gian leo mục tiêu (spec/48): xong trong đúng chừng này ngày kể từ
+   * `startDate`, không tính Ngày 0 của chuyến xe đêm. Không có = máy tự tính.
+   * Engine ≥ 8.
+   */
+  targetDays?: number
 }
 
 export type LegFlag =
@@ -272,6 +278,37 @@ export interface PlanResult {
   profile: { stepM: number; ele: (number | null)[] }
   checklist: string[]
   trailIds: string[]
+  /** Kết quả so với thời gian leo mục tiêu — chỉ có khi doc đặt `targetDays`. */
+  target?: PlanTarget
+}
+
+/**
+ * - `met`: xong đúng số ngày, không ngày nào quá sức.
+ * - `strained`: xong đúng số ngày, nhưng có ngày phải đi quá sức an toàn.
+ * - `impossible`: không chia được đúng số ngày (`reason`).
+ */
+export type TargetStatus = 'met' | 'strained' | 'impossible'
+
+/**
+ * - `fixedNights`: đêm người dùng tự quyết đã nhiều hơn số ngày mục tiêu.
+ * - `tooShort`: quãng đi không đủ dài để chia thêm ngày.
+ * - `noRestPlace`: đoàn không mang lều và không còn lán / bản nào để ngủ thêm.
+ */
+export type TargetReason = 'fixedNights' | 'tooShort' | 'noRestPlace'
+
+export interface PlanTarget {
+  /** Số ngày mục tiêu (= doc.targetDays). */
+  days: number
+  status: TargetStatus
+  /** Số ngày thật của kế hoạch, không tính Ngày 0 (≠ days chỉ khi impossible). */
+  actualDays: number
+  /** Chỉ số (trong `days`) của các ngày phải đi quá sức an toàn. */
+  strainedDays: number[]
+  /** Số ngày máy tự tính — chỉ khi mục tiêu ít ngày hơn và phải gồng. */
+  suggestDays?: number
+  /** Nhịp tối thiểu (bước 0,05) để không ngày nào quá sức, nếu ≤ nhịp tối đa. */
+  paceNeeded?: number
+  reason?: TargetReason
 }
 
 // ─── Gợi ý thứ tự leo (action "suggest") ───────────────────────────────────

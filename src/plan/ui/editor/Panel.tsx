@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { distance, duration, meters } from '@/shared/format'
+import type { SettingsPatch } from '../../core/doc'
+import { targetDaysLabel, targetNote } from '../../core/target'
 import type { PlanDoc, PlanResult } from '../../core/types'
+import { TargetDaysField } from './TargetDaysField'
 import type { SaveState } from './use-plan-editor'
 import { useSheetDrag } from './use-sheet-drag'
 
@@ -16,8 +19,8 @@ interface Props {
   tab: PanelTab
   prepCount: { done: number; total: number }
   onTab(t: PanelTab): void
-  onTitle(v: string): void
-  onDate(v: string): void
+  /** Sửa cài đặt chung: tên, ngày bắt đầu, thời gian leo, mang lều. */
+  onSettings(p: SettingsPatch): void
   onRetryCompute(): void
   onRetrySave(): void
   onConflict(pick: 'mine' | 'theirs'): void
@@ -38,12 +41,19 @@ export function Panel(p: Props) {
       </button>
       <div className={`pl-busy${p.computing ? ' is-on' : ''}`} aria-hidden="true" />
       <div className="pl-panel-head">
-        <TitleField value={p.doc.title} onCommit={p.onTitle} />
+        <TitleField value={p.doc.title} onCommit={(title) => p.onSettings({ title })} />
         <div className="pl-when">
           <label>
             <span>Ngày bắt đầu leo</span>
-            <input type="date" value={p.doc.startDate} min="2020-01-01" max="2100-12-31" onChange={(e) => e.target.value && p.onDate(e.target.value)} />
+            <input
+              type="date"
+              value={p.doc.startDate}
+              min="2020-01-01"
+              max="2100-12-31"
+              onChange={(e) => e.target.value && p.onSettings({ startDate: e.target.value })}
+            />
           </label>
+          <TargetDaysField value={p.doc.targetDays ?? null} onChange={(targetDays) => p.onSettings({ targetDays })} />
         </div>
       </div>
       <StatusLines {...p} />
@@ -182,5 +192,55 @@ function StatusLines(p: Props) {
       </p>,
     )
   }
+  const target = targetStatus(p)
+  if (target) lines.push(target)
   return lines.length ? <div className="pl-status-wrap">{lines}</div> : null
+}
+
+/**
+ * Kết quả so với thời gian leo mục tiêu (spec/48) + cách gỡ: đặt số ngày máy đề
+ * xuất, mang lều, hay về tự tính. Kết quả của doc cũ (đang tính lại sau khi đổi
+ * mục tiêu) thì không nói.
+ */
+function targetStatus(p: Props): ReactNode {
+  const target = p.result?.target
+  if (!target || target.days !== p.doc.targetDays) return null
+  const text = targetNote(target)
+  if (!text) return null
+  const suggest = target.suggestDays
+  return (
+    <div key="target" className="pl-status is-warn">
+      <p>{text}</p>
+      <div className="pl-status-actions">
+        {suggest != null && (
+          <button
+            type="button"
+            className="pl-btn pl-btn-quiet sm"
+            onClick={() => p.onSettings({ targetDays: suggest })}
+            data-tip="Số ngày máy tự tính để không ngày nào quá sức"
+          >
+            Đặt {targetDaysLabel(suggest)}
+          </button>
+        )}
+        {target.reason === 'noRestPlace' && p.doc.noCamp && (
+          <button
+            type="button"
+            className="pl-btn pl-btn-quiet sm"
+            onClick={() => p.onSettings({ camp: true })}
+            data-tip="Đoàn mang lều thì nghỉ được ở vùng nên nghỉ khi không có lán"
+          >
+            Mang lều
+          </button>
+        )}
+        <button
+          type="button"
+          className="pl-btn pl-btn-quiet sm"
+          onClick={() => p.onSettings({ targetDays: null })}
+          data-tip="Để máy tự chia ngày theo sức đi an toàn"
+        >
+          Về tự tính
+        </button>
+      </div>
+    </div>
+  )
 }

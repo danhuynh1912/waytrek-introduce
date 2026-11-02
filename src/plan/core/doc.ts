@@ -691,6 +691,8 @@ export function nightTransferOffered(vehicleM: number | null, current: number | 
 export const DEFAULT_LUNCH_MIN = 30
 /** Thời gian ở trên đỉnh mặc định — chép từ DEFAULTS.summitMin của engine. */
 export const DEFAULT_SUMMIT_MIN = 30
+/** Thời gian leo mục tiêu tối đa — chép `MAX_TARGET_DAYS` của engine/validate.ts. */
+export const MAX_TARGET_DAYS = 60
 
 /**
  * Có cho đánh dấu "Nghỉ đêm ở đây" không: điểm giữa kế hoạch, và KHÔNG phải đỉnh
@@ -782,6 +784,8 @@ export interface SettingsPatch {
   sunsetMarginMin?: number
   /** Đoàn có mang lều (được cắm trại khi không có lán). */
   camp?: boolean
+  /** Thời gian leo mục tiêu (ngày); null = máy tự tính (spec/48). */
+  targetDays?: number | null
 }
 
 function clamp(v: number, lo: number, hi: number): number {
@@ -838,6 +842,10 @@ export function patchSettings(doc: PlanDoc, p: SettingsPatch): PlanDoc {
   // Chỉ ghi khi tắt: kế hoạch không đụng tới cắm trại giữ nguyên băm.
   if (p.camp === true) delete next.noCamp
   if (p.camp === false) next.noCamp = true
+  if (p.targetDays === null) delete next.targetDays
+  else if (p.targetDays !== undefined && Number.isFinite(p.targetDays)) {
+    next.targetDays = clamp(Math.round(p.targetDays), 1, MAX_TARGET_DAYS)
+  }
   return next
 }
 
