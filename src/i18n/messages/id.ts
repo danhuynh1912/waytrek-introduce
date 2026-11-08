@@ -5,7 +5,7 @@ const id: Messages = {
     home: {
       title: 'WayTrek – Peta jalur offline dan navigasi untuk pendaki di Vietnam',
       description:
-        'WayTrek adalah teman mendaki di Vietnam: peta offline, navigasi yang tetap jalan tanpa sinyal, jalur GPX asli, check-in puncak, pendakian grup, dan tombol “Aku tersesat”.',
+        'WayTrek adalah teman mendaki di Vietnam: peta offline, navigasi tanpa sinyal, jalur GPX asli, check-in puncak, pendakian grup, dan tombol “Aku tersesat”.',
       share: 'Peta offline, navigasi tanpa sinyal, check-in puncak, dan pendakian grup untuk pendaki di Vietnam.',
     },
     map: {

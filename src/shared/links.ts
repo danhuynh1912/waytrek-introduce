@@ -1,7 +1,7 @@
 // Link ra ngoài trang — một chỗ cho cả trang chủ, trang cung, lời mời vào đoàn.
 
-import { LOCALE_INFO } from '../i18n/locales'
-import type { Locale } from '../i18n/locales'
+import { LOCALE_INFO } from '../i18n/locales.ts'
+import type { Locale } from '../i18n/locales.ts'
 
 export const STORE_URL = 'https://apps.apple.com/vn/app/waytrek/id6789542012'
 export const ANDROID_PACKAGE = 'com.trek.way_trek'

@@ -11,7 +11,7 @@ export const vi = {
     home: {
       title: 'WayTrek - Người bạn đồng hành cho trekkers Việt Nam',
       description:
-        'WayTrek là bạn đồng hành leo núi: bản đồ offline, dẫn đường khi mất sóng, các cung núi Việt Nam với lộ trình GPX thật, ghi danh đỉnh, đoàn trek và nút "Tôi bị lạc".',
+        'WayTrek là bạn đồng hành leo núi: bản đồ offline, dẫn đường khi mất sóng, lộ trình GPX thật, ghi danh đỉnh, đoàn trek và nút "Tôi bị lạc".',
       share: 'Bản đồ offline, dẫn đường khi mất sóng, ghi danh đỉnh và đoàn trek cho người leo núi Việt Nam.',
     },
     map: {

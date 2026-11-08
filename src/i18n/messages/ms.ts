@@ -5,7 +5,7 @@ const ms: Messages = {
     home: {
       title: 'WayTrek – Peta laluan luar talian dan navigasi untuk pendaki di Vietnam',
       description:
-        'WayTrek ialah teman mendaki di Vietnam: peta luar talian, navigasi yang tetap berfungsi tanpa isyarat, laluan GPX sebenar, daftar masuk puncak, trek berkumpulan dan butang “Saya sesat”.',
+        'WayTrek, teman mendaki di Vietnam: peta luar talian, navigasi tanpa isyarat, laluan GPX sebenar, daftar masuk puncak, trek berkumpulan dan butang “Saya sesat”.',
       share: 'Peta luar talian, navigasi tanpa isyarat, daftar masuk puncak dan trek berkumpulan untuk pendaki di Vietnam.',
     },
     map: {

@@ -5,7 +5,7 @@ const en: Messages = {
     home: {
       title: 'WayTrek – Offline trail maps and navigation for hikers in Vietnam',
       description:
-        'WayTrek is a hiking companion for Vietnam: offline maps, navigation that works without signal, real GPX routes for the country’s peaks, summit check-ins, group treks and a “I’m lost” button.',
+        'WayTrek is a hiking companion for Vietnam: offline maps, navigation without signal, real GPX routes, summit check-ins, group treks and an “I’m lost” button.',
       share: 'Offline maps, navigation without signal, summit check-ins and group treks for hikers in Vietnam.',
     },
     map: {

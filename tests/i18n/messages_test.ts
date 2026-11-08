@@ -58,3 +58,15 @@ Deno.test('fill điền biến, thiếu biến thì để nguyên', () => {
   assertEquals(fill('{n} peaks', { n: 78 }), '78 peaks')
   assertEquals(fill('{a} {b}', { a: 'x' }), 'x {b}')
 })
+
+// Google cắt mô tả ở ~160 ký tự Latin: viết dài hơn là mất phần cuối (và tiêu đề ~70).
+for (const locale of LOCALES) {
+  Deno.test(`SEO ${locale}: tiêu đề và mô tả không quá dài`, async () => {
+    const m = (await import(`../../src/i18n/messages/${locale}.ts`)) as { default?: typeof vi; vi?: typeof vi }
+    const seo = (m.default ?? m.vi!).seo
+    for (const page of [seo.home, seo.map]) {
+      assert(page.title.length <= 75, `${locale}: tiêu đề ${page.title.length} ký tự`)
+      assert(page.description.length <= (locale === 'my' ? 210 : 165), `${locale}: mô tả ${page.description.length} ký tự`)
+    }
+  })
+}

@@ -124,6 +124,17 @@ img { max-width: 100%; display: block; }
   textarea { font-size: max(16px, 1em) !important; }
 }
 
+/* ---------- Thân trang tĩnh (i18n/static-body.ts) ----------
+   Văn bản cho máy tìm kiếm nằm sẵn trong #root; React thay nó ngay khi JS chạy.
+   Chỉ cần đọc được trong khoảnh khắc đó — không cần giống trang thật. */
+.seo-static { max-width: 760px; margin: 0 auto; padding: 96px 24px 64px; min-height: 100vh; background: var(--bg); color: var(--text); font-family: var(--font-sans); line-height: 1.6; }
+.seo-static h1 { margin: 24px 0; font-size: clamp(32px, 6vw, 56px); line-height: 1.15; font-weight: 500; }
+.seo-static h2 { margin: 40px 0 12px; font-size: clamp(22px, 3vw, 30px); font-weight: 600; }
+.seo-static h3 { margin: 20px 0 4px; font-size: 18px; font-weight: 600; }
+.seo-static p, .seo-static li { color: var(--text-2); }
+.seo-static ol, .seo-static ul { padding-left: 20px; }
+.seo-static a { color: var(--accent-ink); }
+
 /* ---------- Tooltip chung (src/shared/tooltip.ts) ----------
    Mặt đặc ĐẢO màu của trang (chữ sáng trên nền tối ở giao diện sáng, và ngược
    lại): nổi trên cả trang lẫn ảnh bản đồ mà không cần bóng đổ. Hiện/tắt và

@@ -91,7 +91,15 @@ mại); DNS `waytrek.site` do Cloudflare quản lý.
     — thư mục + `.html` để Pages phục vụ đúng địa chỉ, KHÔNG chuyển hướng `/map` → `/map/` làm lệch
     canonical; kèm `sitemap.xml` có hreflang và JSON-LD ở trang chủ). Mỗi bản liệt kê ĐỦ cả bộ hreflang
     kể cả chính mình + `x-default` (= `/en/`). Mẫu `index.html` đổi hình mà regex không khớp thì build
-    HỎNG (cố ý). KHÔNG tự chuyển hướng theo `Accept-Language`: crawler không gửi nó và sẽ lập chỉ mục
+    HỎNG (cố ý).
+    **Thân trang tĩnh** (`i18n/static-body.ts`): văn bản của trang chủ / Khám phá nằm sẵn trong `#root` cho
+    crawler không chạy JS (React `createRoot` thay nó ngay khi JS chạy). Trang Khám phá tĩnh kèm danh
+    sách cung có link thật `/xx/trail/<id>`. Lúc build, `fetchTrails` gọi Supabase (khoá anon) lấy danh sách
+    cung → danh sách đó + ~70 cung × 10 ngôn ngữ trong `sitemap.xml`; Supabase hỏng thì build VẪN chạy
+    nhưng in cảnh báo to (xem log deploy: "KHÔNG lấy được danh sách cung") — đừng bỏ qua. `dist/index.html` là
+    đường lui SPA của mọi địa chỉ không có file riêng, nên thân trang chủ tiếng Việt có chốt tự gỡ khi
+    `location.pathname !== '/'`; ngôn ngữ khác có file riêng nên không cần. Mô tả ≤ 160 ký tự Latin,
+    tiêu đề ≤ 75 (test chặn). KHÔNG tự chuyển hướng theo `Accept-Language`: crawler không gửi nó và sẽ lập chỉ mục
     nhầm.
   · **Chưa dịch** (vẫn tiếng Việt): `/plan` (cả Edge Function `trip-plan` trả cảnh báo tiếng Việt),
     `/t/<mã>` (theo dõi chuyến đi), `/j/<mã>` (lời mời đoàn), nội dung người dùng / đội ngũ nhập (tên
