@@ -69,6 +69,37 @@ mại); DNS `waytrek.site` do Cloudflare quản lý.
     `npm run test:plan` (deno). Kiểu dữ liệu `core/types.ts` chép từ
     `supabase/functions/trip-plan/engine/types.ts` — engine là chủ, sửa ở đó trước.
 
+- **Đa ngôn ngữ** (`src/i18n/`, 10 ngôn ngữ: vi · en · ja · ko · zh (giản thể) · th · lo · my · id · ms):
+  · **Tiếng Việt là bản gốc và KHÔNG có tiền tố** (`/`, `/map`) — giữ nguyên link đã lập chỉ mục và
+    deep link của app; ngôn ngữ khác có tiền tố `/en/`, `/ja/map`, `/zh/trail/<id>`… Địa chỉ là nguồn
+    DUY NHẤT của ngôn ngữ (không state thứ hai); `navigate` / `Link` tự giữ tiền tố, đổi ngôn ngữ =
+    tải trang của địa chỉ mới (bộ chọn `LanguageSwitch`). `routes.ts` KHÔNG biết tiền tố — `router.ts`
+    tách nó ra trước khi parse.
+  · **Câu chữ ở `src/i18n/messages/<mã>.ts`**; `vi.ts` định nghĩa kiểu `Messages`, ngôn ngữ khác thiếu
+    khoá là TypeScript báo. `npm run test:i18n` bắt thêm: lệch số phần tử mảng, lệch biến `{tên}`, chuỗi
+    rỗng. Thêm khoá = thêm vào `vi.ts` rồi cả 9 file kia. Dịch cho TỰ NHIÊN theo từng ngôn ngữ, đừng
+    dịch từng chữ (đã chốt: "cung" → peak/山/산/山峰…; "ghi danh" → check-in / 登頂記録 / 登顶打卡…).
+    Mảnh ghép câu (`seo.sep`, `seo.colon`, `nameRegion`) có để mỗi ngôn ngữ dùng dấu câu của mình.
+  · **Số theo ngôn ngữ**: `useI18n().fmt` (`makeNumberFormat`, luôn chữ số Latin — `-u-nu-latn`).
+    Đừng import `count` / `distance` / `meters` trần vào trang đã dịch: đó là bản tiếng Việt (dấu chấm
+    ngăn nghìn) dành cho /plan và test.
+  · **Font**: Inter Tight không có chữ Nhật / Hàn / Hoa / Thái / Lào / Miến → `document.ts` nạp Noto
+    tương ứng CHỈ khi trang ở ngôn ngữ đó; `styles.css` đặt `--font-sans`, khoảng dòng, tắt
+    letter-spacing âm theo `:lang()`; `home.css` đọc `--h1-k` / `--h1-lh` / `--h2-lh`.
+  · **SEO**: `seo.ts` (`buildHead`, `alternatesOf`) là MỘT nguồn cho cả `usePageMeta` (lúc chạy) lẫn
+    `vite-plugins/seo-pages.ts` (lúc build: `/en/` → `dist/en/index.html`, `/en/map` → `dist/en/map.html`
+    — thư mục + `.html` để Pages phục vụ đúng địa chỉ, KHÔNG chuyển hướng `/map` → `/map/` làm lệch
+    canonical; kèm `sitemap.xml` có hreflang và JSON-LD ở trang chủ). Mỗi bản liệt kê ĐỦ cả bộ hreflang
+    kể cả chính mình + `x-default` (= `/en/`). Mẫu `index.html` đổi hình mà regex không khớp thì build
+    HỎNG (cố ý). KHÔNG tự chuyển hướng theo `Accept-Language`: crawler không gửi nó và sẽ lập chỉ mục
+    nhầm.
+  · **Chưa dịch** (vẫn tiếng Việt): `/plan` (cả Edge Function `trip-plan` trả cảnh báo tiếng Việt),
+    `/t/<mã>` (theo dõi chuyến đi), `/j/<mã>` (lời mời đoàn), nội dung người dùng / đội ngũ nhập (tên
+    cung, mô tả, truyện núi, điểm đánh dấu), trang pháp lý ở admin web, nhãn địa danh trên bản đồ.
+  · Link cửa hàng theo ngôn ngữ (`storeUrlFor` / `playUrlFor` trong `shared/links.ts`): App Store của
+    nước dùng ngôn ngữ đó (app phát hành ở 11 nước, xem CLAUDE.md của WayTrek) — đổi bảng ở
+    `LOCALE_INFO.storefront`.
+
 ## Engineering Rules
 
 These rules apply to all code you create or modify. Follow existing project
@@ -88,10 +119,13 @@ exception.
 5. **Single source of truth (SSOT):** Each piece of authoritative state or
    business knowledge has one owner. Avoid competing copies and duplicated
    configuration.
-   - Ở repo này: token màu trong `src/styles.css` chép 1:1 từ
-     `app_theme_colors.dart` của app WayTrek — app là chủ, sửa ở app trước rồi
-     chép lại. Ảnh màn trong `public/screens/` cũng chụp từ app (cách làm ở
-     README).
+   - Ở repo này: token màu trong `src/styles.css` theo bộ thành phần mới của
+     app (spec/52, canvas "WayTrek — bản vẽ các màn": nền #0A0A0A / #F7F7F5,
+     nhấn lime #BDFE2E) — bản vẽ là chủ, sửa ở đó trước rồi chép. Mặt TÔ dùng
+     `--accent` (+ `--on-accent`), chữ / nét mang màu nhấn dùng `--accent-ink`
+     (lime trên nền tối, rêu sẫm trên nền sáng — lime trên nền sáng không đọc
+     được). Trang chủ CỐ Ý luôn tối (`.wt-dark`). Ảnh màn trong
+     `public/screens/` chụp từ app (cách làm ở README).
 6. **DRY:** Do not duplicate meaningful business rules or knowledge. Do not
    abstract code merely because it looks similar; keep separate concepts
    separate.

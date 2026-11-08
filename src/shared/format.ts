@@ -1,14 +1,36 @@
 // Cách viết số, giờ, quãng đường trên web — theo app (dấu chấm ngăn nghìn,
 // dấu phẩy thập phân: "34,2 km", "1.073 m", "4 giờ 52").
 
-const int = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 })
-const one = new Intl.NumberFormat('vi-VN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-const two = new Intl.NumberFormat('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-
-/** Số đếm có dấu chấm ngăn nghìn: "2.561". */
-export function count(n: number): string {
-  return int.format(Math.round(n))
+/**
+ * Số theo quy ước của một ngôn ngữ (`Intl`): dấu ngăn nghìn / thập phân đổi theo
+ * ngôn ngữ ("1.073 m" tiếng Việt, "1,073 m" tiếng Anh). Đơn vị m / km giữ nguyên
+ * ở mọi ngôn ngữ. Các hàm xuất ra bên dưới là bản tiếng Việt (trang /plan chưa
+ * dịch và các bài test dùng chúng); trang đã dịch lấy bản của mình qua
+ * `useI18n().fmt`.
+ */
+export function makeNumberFormat(intl: string) {
+  const int = new Intl.NumberFormat(intl, { maximumFractionDigits: 0 })
+  const one = new Intl.NumberFormat(intl, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+  const two = new Intl.NumberFormat(intl, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return {
+    /** Số đếm có dấu ngăn nghìn: "2.561" (vi) / "2,561" (en). */
+    count: (n: number): string => int.format(Math.round(n)),
+    /** Quãng đường: dưới 1 km viết mét, còn lại một chữ số thập phân. */
+    distance: (m: number): string => (m < 1000 ? `${int.format(Math.round(m / 10) * 10)} m` : `${one.format(m / 1000)} km`),
+    /** Cột mốc km trên chuyến đi: "36,2". */
+    km: (m: number): string => one.format(m / 1000),
+    meters: (m: number): string => `${int.format(Math.round(m))} m`,
+    pace: (p: number): string => two.format(p),
+    /** Điểm độ khó: hai chữ số thập phân, dấu thập phân theo ngôn ngữ. */
+    score: (s: number): string => two.format(s),
+  }
 }
+
+export type NumberFormat = ReturnType<typeof makeNumberFormat>
+
+const vi = makeNumberFormat('vi-VN')
+
+export const { count, distance, km, meters, pace } = vi
 
 /** Giờ trong ngày từ số phút kể từ 0h: "07:05". Qua nửa đêm thì kèm "(+1)". */
 export function clock(min: number): string {
@@ -37,25 +59,6 @@ export function duration(min: number): string {
   const h = Math.floor(m / 60)
   const r = m % 60
   return r === 0 ? `${h} giờ` : `${h} giờ ${String(r).padStart(2, '0')}`
-}
-
-/** Quãng đường: dưới 1 km viết mét, còn lại một chữ số thập phân. */
-export function distance(m: number): string {
-  if (m < 1000) return `${int.format(Math.round(m / 10) * 10)} m`
-  return `${one.format(m / 1000)} km`
-}
-
-/** Cột mốc km trên chuyến đi: "36,2". */
-export function km(m: number): string {
-  return one.format(m / 1000)
-}
-
-export function meters(m: number): string {
-  return `${int.format(Math.round(m))} m`
-}
-
-export function pace(p: number): string {
-  return two.format(p)
 }
 
 const WEEKDAY = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']

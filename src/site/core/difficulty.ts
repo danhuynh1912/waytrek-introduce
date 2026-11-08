@@ -3,6 +3,10 @@
 // đổi ở app trước rồi chép lại đây. App bày CON SỐ, không bày nhãn Dễ/Khó (chủ
 // sản phẩm 4/10: nhãn quá chung chung); nhãn chỉ là đường lui khi bảng chưa tải.
 
+import { makeNumberFormat } from '../../shared/format.ts'
+
+const VI = makeNumberFormat('vi-VN')
+
 export interface DifficultyScore {
   score: number
   /** 1 = khó nhất. */
@@ -27,9 +31,9 @@ export function boardFromRows(rows: readonly Record<string, unknown>[]): Difficu
   return { byTrail, count: byTrail.size }
 }
 
-/** "3,90" — hai chữ số thập phân, dấu phẩy kiểu Việt (`formatDifficultyScore` của app). */
-export function formatDifficultyScore(score: number): string {
-  return score.toFixed(2).replace('.', ',')
+/** "3,90" — hai chữ số thập phân; mặc định dấu phẩy kiểu Việt (`formatDifficultyScore` của app), ngôn ngữ khác truyền `fmt` của mình. */
+export function formatDifficultyScore(score: number, fmt: { score(n: number): string } = VI): string {
+  return fmt.score(score)
 }
 
 /**

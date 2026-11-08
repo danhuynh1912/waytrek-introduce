@@ -9,7 +9,8 @@
     "lint": "oxlint",
     "test:plan": "deno test --allow-read=. tests/plan/",
     "preview": "vite preview",
-    "test:site": "deno test --allow-read=. tests/site/"
+    "test:site": "deno test --allow-read=. tests/site/",
+    "test:i18n": "deno test --allow-read=. tests/i18n/"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.110.7",

@@ -15,13 +15,17 @@ Landing page cho app WayTrek, dựng song song với `admin_web/` (cùng Vite + 
   - `core/` — thuần TypeScript: bảng đường dẫn, danh mục cung (tìm / xếp), điểm độ khó + màu dải
     (chép từ app), hình học tuyến (đoạn, biểu đồ độ cao, chặng đi xe). Test: `npm run test:site`.
   - `data/catalog.ts` — mọi lần đọc Supabase của các trang này (khoá anon, có trần thời gian chờ).
-  - `pages/` — `HomePage` (bố cục "case study": mở đầu, tổng quan có số liệu thật, nỗi lo / lời đáp,
-    cung được leo nhiều nhất, tính năng), `MapPage` (`/map`), `TrailPage` (`/trail/<id>`).
-  - `ui/` — đầu / chân trang, nét vẽ tay (`Doodle`), bản đồ vẽ tay (`SketchMap`), đường mòn nét đứt
-    nối các khối (`TrailConnector`), bản đồ MapLibre của từng trang (`ui/map/`), biểu đồ độ cao.
+  - `pages/` — `HomePage` (bản vẽ "Trang web waytrek.site" trên canvas, CSS ở `home.css`: mở đầu, bản
+    đồ đỉnh, di sản, tính năng, chia sẻ, kêu gọi tải), `MapPage` (`/map`), `TrailPage` (`/trail/<id>`).
+  - `ui/` — đầu / chân trang, khung máy (`Phone`), nét vẽ tay (`Doodle`, trang 404), bản đồ MapLibre của
+    từng trang (`ui/map/`), biểu đồ độ cao.
 - `src/shared/` — dùng chung cho mọi trang: Supabase + đăng nhập (`AuthDialog`), định dạng số, bỏ dấu
   để tìm, link ra ngoài, khởi động bản đồ theo theme + bảng màu nét vẽ (`map/`).
-- `src/styles.css` — token màu chép 1:1 từ `app_theme_colors.dart`, hai theme; mặc định Tối như app.
+- `src/i18n/` — đa ngôn ngữ (10 ngôn ngữ): bảng ngôn ngữ + đường dẫn (`locales.ts`), thẻ SEO / hreflang (`seo.ts`),
+  câu chữ (`messages/<mã>.ts`), ngữ cảnh React (`context.ts`, `provider.tsx`), nạp lười (`load.ts`). Test: `npm run test:i18n`.
+- `vite-plugins/seo-pages.ts` — lúc build: trang tĩnh theo ngôn ngữ (`dist/<mã>/index.html`, `map.html`) + `sitemap.xml` có hreflang.
+- `src/styles.css` — token màu theo bộ thành phần mới của app (canvas spec/52: nền trung tính, nhấn lime), hai
+  theme; mặc định Tối như app. Trang chủ luôn tối.
 
 ## Lên kế hoạch chuyến trek (`/plan`)
 
@@ -37,7 +41,7 @@ Thiết kế: `spec/43-trip-planner.md` (repo WayTrek). Mọi luật tính ở E
 ## Cập nhật ảnh màn hình
 
 Chụp từ simulator bằng `xcrun simctl io booted screenshot`, xuất JPEG rộng ~830px vào `public/screens/`
-(trang chủ dùng sáu ảnh này trong các khung máy — tên file khai ở `src/site/pages/HomePage.tsx`).
+(trang chủ dùng năm ảnh `lp-*.jpg` trong các khung máy — tên file khai ở `src/site/pages/HomePage.tsx`).
 
 - **Chụp từ build của nhánh `master`** (app thật sắp phát hành). Simulator trên máy dev hay đang cài bản
   build từ nhánh thử nghiệm giao diện (`experiment/ui-lab`) — kiểm `Runner.app` đang cài là của checkout

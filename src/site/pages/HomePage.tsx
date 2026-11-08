@@ -1,360 +1,295 @@
-// Trang chủ waytrek.site — bố cục theo bản mẫu "case study": mở đầu chữ lớn +
-// cụm màn hình nằm nghiêng, khối tổng quan có số liệu, cặp "nỗi lo / lời đáp"
-// đổi bên, rồi tới nội dung thật của app (cung được leo nhiều nhất) và các
-// tính năng. Một đường mòn nét đứt nối các khối từ trên xuống, cắm cờ ở danh
-// sách cung thật — đích của đường mòn là nội dung, không phải nút tải app.
+// Trang chủ waytrek.site — dựng theo bản vẽ "Trang web waytrek.site" trên canvas
+// "WayTrek — bản vẽ các màn" (5/11): nền tối, một màu nhấn lime, chữ lớn + máy
+// nằm nghiêng. Sáu khối: mở đầu · bản đồ đỉnh · di sản · tính năng · chia sẻ ·
+// kêu gọi tải. Màn trong máy là ảnh chụp thật của app (public/screens/lp-*).
+// Khối này CỐ Ý luôn tối (`wt-dark` ở SiteApp) — bản vẽ chỉ có nền tối.
 
-import { useRef } from 'react'
-import type { ReactNode } from 'react'
-import { count } from '@/shared/format'
-import { PLAY_URL, STORE_URL } from '@/shared/links'
-import { DEFAULT_FILTER, filterTrails } from '../core/trails'
-import type { DifficultyBoard } from '../core/difficulty'
-import type { TrailSummary } from '../core/trails'
+import '../home.css'
+import type { CSSProperties, ReactNode } from 'react'
+import { playUrlFor, storeUrlFor } from '@/shared/links'
+import { useI18n } from '../../i18n/context'
+import { fill } from '../../i18n/text'
 import { Link } from '../ui/Link'
-import { Doodle } from '../ui/Doodle'
 import { usePageMeta } from '../ui/page-meta'
 import { Phone } from '../ui/Phone'
-import { SketchMap } from '../ui/SketchMap'
-import { TrailCard } from '../ui/TrailCard'
-import { TrailConnector } from '../ui/TrailConnector'
-import { useCatalog, useCatalogCounts, useDifficultyBoard } from '../ui/use-catalog'
+import { useCatalog } from '../ui/use-catalog'
 import { useReveal } from '../ui/use-reveal'
 
 const SHOT = {
-  explore: '/screens/01-kham-pha.jpg',
-  terrain: '/screens/02-dia-hinh-3d.jpg',
-  offline: '/screens/03-ban-do-offline.jpg',
-  tracklog: '/screens/04-track-log.jpg',
-  replay: '/screens/05-phat-lai.jpg',
-  legacy: '/screens/06-son-pha.jpg',
+  trail: '/screens/lp-ban-do-cung.jpg',
+  peaks: '/screens/lp-ban-do-dinh.jpg',
+  legacy: '/screens/lp-di-san.jpg',
+  recording: '/screens/lp-dang-ghi.jpg',
+  post: '/screens/lp-bai-viet.jpg',
 }
 
 export function HomePage() {
-  usePageMeta({
-    title: 'WayTrek - Người bạn đồng hành cho trekkers Việt Nam',
-    description:
-      'WayTrek là bạn đồng hành leo núi: các cung núi Việt Nam với độ khó do người leo xếp hạng, bản đồ offline, địa hình 3D, ghi và phát lại hành trình, AI gọi tên cây cỏ trên đường.',
-    path: '/',
-  })
-  const [catalog, retry] = useCatalog()
-  const counts = useCatalogCounts()
-  const board = useDifficultyBoard()
-  const root = useRef<HTMLDivElement>(null)
-  const trails = catalog.status === 'ready' ? catalog.data : null
-  const trailCount = trails?.length ?? null
+  const { m, fmt } = useI18n()
+  usePageMeta({ title: m.seo.home.title, description: m.seo.home.description, path: '/' })
+  const [catalog] = useCatalog()
+  // Chưa tải được danh mục thì nói "gần 80" như bản vẽ — đúng văn phạm từng ngôn ngữ nằm ở câu chữ.
+  const trails = catalog.status === 'ready' ? fmt.count(catalog.data.length) : m.home.peaks.countFallback
+  const peaks = m.home.peaks
 
   return (
-    <div className="st-home" ref={root}>
-      <TrailConnector rootRef={root} />
-      <Hero trailCount={trailCount} />
-      <Overview
-        items={[
-          { icon: 'peaks', value: trailCount, label: 'Cung núi' },
-          { icon: 'route', value: counts?.routes ?? null, label: 'Lộ trình' },
-          { icon: 'flag', value: counts?.boardConquests ?? null, label: 'Lượt ghi danh' },
-          { icon: 'pin', value: counts?.pois ?? null, label: 'Điểm đánh dấu' },
-        ]}
-      />
-      <Worries />
-      <Answers />
-      <Popular
-        state={catalog.status}
-        trails={trails ? filterTrails(trails, DEFAULT_FILTER).slice(0, 6) : []}
-        total={trailCount}
-        board={board}
-        onRetry={retry}
-      />
-      <Feature
-        eyebrow="Địa hình 3D"
-        title="Nhìn thấy con dốc trước khi đôi chân gặp nó"
-        body="Bạn xoay, nghiêng và phóng to quanh đỉnh núi ngay trên điện thoại. Dữ liệu độ cao thật cho bạn biết đoạn nào dựng đứng, lán nghỉ nằm ở khúc quanh nào và lối mòn dẫn lên tới đâu."
-        art={<Phone src={SHOT.terrain} alt="Màn địa hình 3D của một cung núi trong app WayTrek" />}
-        doodle="compass"
-      />
-      <Feature
+    <div className="lp">
+      <Hero />
+      <Showcase
         reverse
-        eyebrow="Phát lại hành trình"
-        title="Đi xong, ngọn núi kể lại chuyến đi cho bạn"
-        body="Camera bay theo đúng con đường bạn đã bước, kèm độ cao và quãng đường của từng chặng. Một lần quay màn hình là bạn có ngay thước phim để kể cho người ở nhà nghe."
-        art={<Phone src={SHOT.replay} alt="Màn phát lại hành trình trên địa hình 3D trong app WayTrek" />}
-        doodle="sun"
+        title={[...peaks.lines.map((l) => fill(l, { n: trails })), <Dim key="d">{peaks.dim}</Dim>]}
+        caption={{
+          icon: 'map',
+          label: peaks.label,
+          text: fill(peaks.text, { n: trails }),
+          action: <Link to="/map" className="lp-cap-link" data-tip={peaks.linkTip}>{peaks.link} <Arrow /></Link>,
+        }}
+        shot={SHOT.peaks}
+        alt={peaks.alt}
       />
-      <Feature
-        eyebrow="Sơn phả và Bảng Vàng"
-        title="Mỗi đỉnh núi là một dòng trong gia phả của bạn"
-        body="WayTrek ghi danh bạn ngay khoảnh khắc bạn chạm tới đỉnh. Sơn phả dày lên theo từng chuyến đi, Bảng Vàng xếp hạng theo mùa, và những danh hiệu như Người Khai Sơn chỉ dành cho người thật sự đặt chân lên tới nơi."
-        art={<Phone src={SHOT.legacy} alt="Màn Sơn phả với các huy chương đỉnh núi trong app WayTrek" />}
-        doodle="star"
-      />
-      <Feature
-        reverse
-        eyebrow="Lên kế hoạch"
-        title="Chuyến đi bắt đầu từ bàn làm việc của bạn"
-        body="Bạn chọn những đỉnh muốn leo, WayTrek tự chia chặng theo sức đi, gợi ý lán nghỉ và tính giờ xuất phát để bạn đứng trên đỉnh đúng lúc mặt trời lên."
-        art={<PlanNote />}
-        doodle="tent"
-        action={<a className="st-btn st-btn-primary" href="/plan" data-tip="Chọn các đỉnh muốn leo, xem giờ từng chặng và chỗ nghỉ đêm">Mở trang lên kế hoạch</a>}
+      <Statement />
+      <Features />
+      <Showcase
+        title={[...m.home.share.lines, <Dim key="d">{m.home.share.dim}</Dim>]}
+        caption={{ icon: 'flag', label: m.home.share.label, text: m.home.share.text }}
+        shot={SHOT.post}
+        alt={m.home.share.alt}
       />
       <Closing />
     </div>
   )
 }
 
-function Hero({ trailCount }: { trailCount: number | null }) {
-  const copy = useReveal<HTMLDivElement>()
-  const art = useReveal<HTMLDivElement>()
+/* ---------- Biểu tượng (nét, cùng bộ với bản vẽ) ---------- */
+
+type IconName = 'map' | 'flag' | 'nav' | 'users' | 'buoy' | 'mount' | 'check' | 'wifiOff'
+
+const ICON: Record<IconName, ReactNode> = {
+  map: <><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5z" /><path d="M9 4v13.5M15 6.5V20" /></>,
+  flag: <path d="M5 21V4M5 4h11l-2 4 2 4H5" />,
+  nav: <path d="M12 2.5 19.5 21 12 16.8 4.5 21z" fill="currentColor" stroke="none" />,
+  users: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c.6-3.4 3.3-5.5 6.5-5.5s5.9 2.1 6.5 5.5" /><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.7c1.9.7 3.2 2.6 3.5 5.3" /></>,
+  buoy: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.6" /><path d="m5.6 5.6 3.9 3.9M14.5 14.5l3.9 3.9M18.4 5.6l-3.9 3.9M9.5 14.5l-3.9 3.9" /></>,
+  mount: <path d="m3 19 6.5-11 3.5 5.5 2.5-3.5L21 19z" />,
+  check: <path d="m5 12.5 4.5 4.5L19 7.5" strokeWidth="2.2" />,
+  wifiOff: <path d="M2 8.8a15 15 0 0 1 4.2-2.7M10.7 4.2A15 15 0 0 1 22 8.8M5 12.9a10 10 0 0 1 5-2.6M14.7 10.5a10 10 0 0 1 4.3 2.4M8.5 16.4a5 5 0 0 1 7 0M12 20h.01M3 3l18 18" />,
+}
+
+function Icon({ name, size = 22 }: { name: IconName; size?: number }) {
   return (
-    <section className="st-hero">
-      <div className="st-wrap st-hero-grid">
-        <div className="st-hero-copy st-reveal" ref={copy}>
-          <Doodle kind="dashArrow" size={96} className="st-d st-d-lead" />
-          <p className="st-eyebrow"><b>WayTrek</b><span>Sổ tay của người leo núi Việt</span></p>
-          <h1 className="st-h1">Mỗi cung núi đều có người đi trước</h1>
-          <p className="st-lead">
-            WayTrek gom những lối mòn mà cộng đồng người leo đã ghi lại bằng chính bước chân của họ, rồi đặt tất cả vào túi áo bạn.
-            Khi vạch sóng cuối cùng tắt ở chân núi, tấm bản đồ ấy vẫn sáng trên màn hình.
-          </p>
-          <div className="st-cta-row">
-            <Link to="/map" className="st-btn st-btn-primary st-btn-lg" data-tip="Mở bản đồ và danh sách mọi cung núi">
-              {trailCount ? `Khám phá ${trailCount} cung núi` : 'Khám phá các cung núi'}
-            </Link>
-            <a className="st-btn st-btn-ghost st-btn-lg" href="#tai-app" data-tip="Tới chỗ tải WayTrek cho iPhone và Android">Tải ứng dụng</a>
-          </div>
-          <Doodle kind="squiggle" size={72} className="st-d st-d-squiggle" />
-          <Doodle kind="smiley" size={26} className="st-d st-d-smiley" />
-          <Doodle kind="square" size={12} className="st-d st-d-sq1" />
-        </div>
-        <div className="st-hero-art st-reveal" ref={art} data-trail-anchor data-ax="0.18" data-ay="0.96">
-          <div className="st-iso">
-            <div className="st-iso-col">
-              <Phone src={SHOT.explore} alt="Màn khám phá cung núi" eager />
-              <Phone src={SHOT.tracklog} alt="Màn ghi hành trình" />
-            </div>
-            <div className="st-iso-col">
-              <Phone src={SHOT.legacy} alt="Màn Sơn phả" eager />
-              <Phone src={SHOT.offline} alt="Màn bản đồ offline" />
-            </div>
-            <div className="st-iso-col">
-              <Phone src={SHOT.terrain} alt="Màn địa hình 3D" eager />
-              <Phone src={SHOT.replay} alt="Màn phát lại hành trình" />
-            </div>
-          </div>
-          <Doodle kind="bubble" size={104} className="st-d st-d-bubble" />
-          <Doodle kind="square" size={12} className="st-d st-d-sq2" />
-          <Doodle kind="star" size={22} className="st-d st-d-star" />
-          <Doodle kind="arrowUp" size={22} className="st-d st-d-up" />
-        </div>
-      </div>
-    </section>
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {ICON[name]}
+    </svg>
   )
 }
 
-type StatIcon = 'peaks' | 'route' | 'flag' | 'pin'
+const Arrow = () => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+)
 
-const STAT_ICON: Record<StatIcon, ReactNode> = {
-  peaks: <path d="M3 19 9.5 8l4 6 2.5-3.5L21 19z" />,
-  route: <><circle cx="6" cy="6" r="2" /><circle cx="18" cy="18" r="2" /><path d="M8 6h5a3.5 3.5 0 0 1 0 7h-2a3.5 3.5 0 0 0 0 7h5" /></>,
-  flag: <><path d="M6 21V4" /><path d="M6 5c4-2 7 2 12 0v8c-5 2-8-2-12 0" /></>,
-  pin: <><path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z" /><circle cx="12" cy="10" r="2.3" /></>,
-}
+/** Phần chữ mờ của một tiêu đề (dòng thứ hai trở đi trong bản vẽ). */
+const Dim = ({ children }: { children: ReactNode }) => <span className="lp-dim">{children}</span>
 
-function Overview({ items }: { items: { icon: StatIcon; value: number | null; label: string }[] }) {
-  const fan = useReveal<HTMLDivElement>()
-  const copy = useReveal<HTMLDivElement>()
-  return (
-    <section className="st-overview">
-      <div className="st-wrap st-overview-grid">
-        <div className="st-fan st-reveal" ref={fan} data-trail-anchor data-ax="0.62" data-ay="0.08">
-          <Phone src={SHOT.replay} alt="" className="st-fan-back" />
-          <Phone src={SHOT.terrain} alt="" className="st-fan-mid" />
-          <Phone src={SHOT.explore} alt="Màn khám phá cung núi của app WayTrek" className="st-fan-front" />
-          <Doodle kind="check" size={40} className="st-d st-d-check" />
-        </div>
-        <div className="st-overview-copy st-reveal" ref={copy}>
-          <h2 className="st-h2 st-h2-plain">Tấm bản đồ do chính người leo vẽ nên</h2>
-          <p className="st-body">
-            Mỗi lộ trình trên WayTrek bắt đầu từ một chuyến đi có thật. Một người bấm ghi ở chân núi, bước tới đỉnh, rồi gửi tracklog
-            về để đội ngũ WayTrek thẩm định. Nhờ vậy, từng con số về quãng đường, độ cao và từng ngã ba bạn thấy trên màn hình đều đã có
-            người đứng ở đó trước bạn.
-          </p>
-          <ul className="st-stats">
-            {items.map((s) => (
-              <li key={s.label}>
-                <span className="st-stat-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{STAT_ICON[s.icon]}</svg>
-                </span>
-                <span className="st-stat-text">
-                  <b className={s.value == null ? 'is-pending' : undefined}>{s.value == null ? '—' : count(s.value)}</b>
-                  <span>{s.label}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-          <Doodle kind="squiggle" size={64} className="st-d st-d-squiggle2" />
-        </div>
-      </div>
-    </section>
-  )
-}
+/* ---------- Mảnh dùng chung ---------- */
 
-function SplitHeading({ accent, rest }: { accent: string; rest: string }) {
-  return (
-    <h2 className="st-h2">
-      <span className="st-h2-accent">{accent}</span> {rest}
-    </h2>
-  )
-}
-
-function Worries() {
-  const copy = useReveal<HTMLDivElement>()
-  const art = useReveal<HTMLDivElement>()
-  return (
-    <section className="st-split">
-      <div className="st-wrap st-split-grid">
-        <div className="st-split-copy st-reveal" ref={copy}>
-          <SplitHeading accent="Nỗi lo" rest="trên núi" />
-          <ul className="st-bullets is-worry">
-            <li>Vạch sóng cuối cùng thường tắt ngay ở chân núi, đúng lúc bạn cần tra đường nhất.</li>
-            <li>Lời review “dễ lắm” trên mạng chỉ đúng với người viết, còn đôi chân bạn thì phải tự kiểm chứng.</li>
-            <li>Một ngã ba không biển báo đủ sức kéo cả đoàn đi lạc nửa ngày giữa rừng.</li>
-            <li>Tin tức về lán nghỉ, nguồn nước và điểm đón xe ôm nằm rải rác trong hàng trăm bài đăng đã cũ.</li>
-            <li>Những tấm ảnh đẹp nhất của chuyến đi thường chìm mất trong thư viện điện thoại sau vài tuần.</li>
-          </ul>
-        </div>
-        <div className="st-split-art st-reveal" ref={art} data-trail-anchor data-ax="0.5" data-ay="0.1">
-          <SketchMap />
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function Answers() {
-  const copy = useReveal<HTMLDivElement>()
-  const art = useReveal<HTMLDivElement>()
-  return (
-    <section className="st-split is-reverse">
-      <div className="st-wrap st-split-grid">
-        <div className="st-split-art st-reveal" ref={art} data-trail-anchor data-ax="0.5" data-ay="0.12">
-          <div className="st-rings">
-            <Phone src={SHOT.offline} alt="Màn bản đồ offline của một cung núi trong app WayTrek" />
-          </div>
-        </div>
-        <div className="st-split-copy st-reveal" ref={copy}>
-          <SplitHeading accent="WayTrek" rest="trả lời" />
-          <ul className="st-bullets is-answer">
-            <li>Bản đồ, lộ trình và các điểm đánh dấu được tải sẵn về máy, nên bạn vẫn biết mình đang đứng ở đâu khi điện thoại báo mất sóng.</li>
-            <li>Độ khó của mỗi cung do chính những người đã leo xếp hạng, không do một bài quảng cáo quyết định.</li>
-            <li>Từng ngã ba, lán nghỉ và điểm bắt xe ôm đều do người leo đánh dấu tại chỗ, rồi được kiểm duyệt trước khi hiện lên bản đồ.</li>
-            <li>Địa hình 3D dựng từ dữ liệu độ cao thật cho bạn thấy con dốc trước khi đôi chân phải gặp nó.</li>
-            <li>Ảnh bạn chụp nằm đúng vị trí trên tuyến, và cả chuyến đi được phát lại từ trên cao như một thước phim.</li>
-          </ul>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function Popular({ state, trails, total, board, onRetry }: {
-  state: 'loading' | 'error' | 'ready'
-  trails: TrailSummary[]
-  total: number | null
-  board: DifficultyBoard | null
-  onRetry(): void
-}) {
-  const head = useReveal<HTMLDivElement>()
-  return (
-    <section className="st-popular" data-trail-anchor data-ax="0.04" data-ay="0.02">
-      <div className="st-wrap">
-        <div className="st-section-head st-reveal" ref={head}>
-          <div>
-            <SplitHeading accent="Cung núi" rest="được leo nhiều nhất" />
-            <p className="st-body">Thứ tự này thay đổi theo từng lượt ghi danh có thật trên WayTrek.</p>
-          </div>
-          <Link to="/map" className="st-more" data-tip="Mở bản đồ mọi cung núi">{total ? `Xem cả ${total} cung trên bản đồ` : 'Xem tất cả trên bản đồ'} <span aria-hidden="true">→</span></Link>
-        </div>
-        {state === 'error' ? (
-          <p className="st-error">
-            Chưa tải được danh sách cung. <button type="button" className="st-text-btn" onClick={onRetry} data-tip="Tải lại danh sách cung">Thử lại</button>
-          </p>
-        ) : (
-          <div className="st-cards" aria-busy={state === 'loading'}>
-            {state === 'loading'
-              ? Array.from({ length: 6 }, (_, i) => <div key={i} className="st-card is-skeleton" aria-hidden="true"><span className="st-card-img" /><span className="st-card-name" /><span className="st-card-meta" /></div>)
-              : trails.map((t) => <TrailCard key={t.id} t={t} board={board} />)}
-          </div>
-        )}
-      </div>
-    </section>
-  )
-}
-
-function Feature({ eyebrow, title, body, art, reverse = false, doodle, action }: {
-  eyebrow: string
-  title: string
-  body: string
-  art: ReactNode
-  reverse?: boolean
-  doodle: 'compass' | 'sun' | 'star' | 'tent'
+interface CaptionProps {
+  icon: IconName
+  label: string
+  text: string
   action?: ReactNode
-}) {
-  const copy = useReveal<HTMLDivElement>()
-  const pic = useReveal<HTMLDivElement>()
-  return (
-    <section className={`st-feature${reverse ? ' is-reverse' : ''}`}>
-      <div className="st-wrap st-feature-grid">
-        <div className="st-feature-art st-reveal" ref={pic}>
-          {art}
-          <Doodle kind={doodle} size={34} className="st-d st-d-feature" />
-        </div>
-        <div className="st-feature-copy st-reveal" ref={copy}>
-          <p className="st-kicker">{eyebrow}</p>
-          <h2 className="st-h3">{title}</h2>
-          <p className="st-body">{body}</p>
-          {action && <div className="st-cta-row">{action}</div>}
-        </div>
-      </div>
-    </section>
-  )
 }
 
-/** Tờ lịch trình viết tay — minh hoạ trang lên kế hoạch, không phải ảnh chụp màn. */
-function PlanNote() {
+/** Chú thích nhỏ cạnh máy: vòng icon · "Nhãn /" · một đoạn chữ. */
+function Caption({ icon, label, text, action, className }: CaptionProps & { className: string }) {
+  const ref = useReveal<HTMLDivElement>()
   return (
-    <div className="st-note" aria-label="Ví dụ một lịch trình hai ngày do trang lên kế hoạch dựng">
-      <p className="st-note-day">Ngày 0</p>
-      <p><time>19:30</time> xe đón ở Hà Nội, ngủ dưới chân núi</p>
-      <p className="st-note-day">Ngày 1</p>
-      <p><time>06:30</time> bắt đầu leo từ bản Xà Hồ</p>
-      <p><time>15:00</time> nghỉ đêm ở lán 2.800 m</p>
-      <p className="st-note-day">Ngày 2</p>
-      <p><time>05:35</time> đứng trên đỉnh Tà Chì Nhù đón bình minh</p>
-      <Doodle kind="sun" size={30} className="st-d st-d-note" />
+    <div className={`lp-cap st-reveal ${className}`} ref={ref}>
+      <span className="lp-cap-icon"><Icon name={icon} size={16} /></span>
+      <p className="lp-cap-label">{label} /</p>
+      <p className="lp-cap-text">{text}</p>
+      {action}
     </div>
   )
 }
 
-function Closing() {
-  const ref = useReveal<HTMLElement>()
+function Stores({ className = '' }: { className?: string }) {
+  const { locale, m } = useI18n()
   return (
-    <section className="st-closing st-reveal" id="tai-app" ref={ref}>
-      <div className="st-wrap st-closing-in">
-        <h2 className="st-h2 st-h2-plain">Lần leo tới, hãy để WayTrek đi cùng bạn.</h2>
-        <p className="st-body">Ứng dụng tải về miễn phí, và tài khoản trên điện thoại dùng được ngay trên trang này.</p>
-        <div className="st-stores">
-          <a className="st-store" href={STORE_URL} target="_blank" rel="noopener" data-tip="Tải WayTrek cho iPhone">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M16.4 12.7c0-2.5 2-3.7 2.1-3.8-1.2-1.7-3-1.9-3.6-2-1.5-.2-3 .9-3.8.9s-2-.9-3.3-.9C6.1 7 4.5 8 3.6 9.5c-1.9 3.3-.5 8.1 1.4 10.8.9 1.3 2 2.8 3.4 2.7 1.4-.1 1.9-.9 3.5-.9s2.1.9 3.5.9c1.5 0 2.4-1.3 3.3-2.6 1-1.5 1.5-3 1.5-3.1-.1 0-2.9-1.1-2.8-4.6zM13.9 5.3c.7-.9 1.2-2.1 1.1-3.3-1 0-2.3.7-3 1.6-.7.8-1.3 2-1.1 3.2 1.1.1 2.3-.6 3-1.5z" /></svg>
-            <span><small>Tải về trên</small><b>App Store</b></span>
-          </a>
-          <a className="st-store" href={PLAY_URL} target="_blank" rel="noopener" data-tip="Tải WayTrek cho điện thoại Android">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M4.2 2.6c-.3.3-.4.7-.4 1.2v16.4c0 .5.1.9.4 1.2l.1.1 9.2-9.2v-.2L4.3 2.5zM16.6 15.4l-3.1-3.1v-.2l3.1-3.1.1.1 3.6 2.1c1 .6 1 1.5 0 2.1l-3.6 2.1zM16.7 15.3 13.5 12l-9.3 9.3c.3.4.9.4 1.5.1l10.9-6.1M16.7 8.7 5.7 2.5C5.1 2.2 4.5 2.2 4.2 2.6l9.3 9.4z" /></svg>
-            <span><small>Tải về trên</small><b>CH Play</b></span>
-          </a>
+    <div className={`lp-stores ${className}`}>
+      <a className="lp-pill is-white" href={storeUrlFor(locale)} target="_blank" rel="noopener" data-tip={m.home.appStoreTip}>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M16.4 12.6c0-2.4 2-3.6 2.1-3.7-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.2-2.9.9-3.7.9-.8 0-1.9-.9-3.2-.8-1.6 0-3.1 1-4 2.4-1.7 3-.4 7.4 1.2 9.8.8 1.2 1.8 2.5 3 2.4 1.2 0 1.7-.8 3.1-.8 1.5 0 1.9.8 3.2.8 1.3 0 2.1-1.2 2.9-2.4.9-1.4 1.3-2.7 1.3-2.8-.1 0-2.4-.9-2.4-3.9zM14 5.4c.7-.8 1.1-1.9 1-3-1 0-2.1.7-2.8 1.5-.6.7-1.2 1.8-1 2.9 1.1.1 2.1-.6 2.8-1.4z" /></svg>
+        {m.home.appStore}
+      </a>
+      <a className="lp-pill is-line" href={playUrlFor(locale)} target="_blank" rel="noopener" data-tip={m.home.googlePlayTip}>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><path d="M5 3.8v16.4c0 .7.8 1.2 1.4.8l13.4-8.2c.6-.4.6-1.2 0-1.6L6.4 3c-.6-.4-1.4.1-1.4.8z" /></svg>
+        {m.home.googlePlay}
+      </a>
+    </div>
+  )
+}
+
+/** Quầng sáng lime dâng từ góc (công thức WtGlowPainter của app, mép tan dần). */
+const Glow = ({ className }: { className: string }) => <div className={`lp-glow ${className}`} aria-hidden="true" />
+
+/* ---------- Các khối ---------- */
+
+function Hero() {
+  const { m } = useI18n()
+  const phone = useReveal<HTMLDivElement>()
+  return (
+    <section className="lp-hero">
+      <Glow className="lp-glow-hero" />
+      <p className="lp-bgword" aria-hidden="true">WAYTREK</p>
+      <svg className="lp-streak" viewBox="0 0 1440 1000" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <filter id="lp-bl1" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="34" /></filter>
+          <filter id="lp-bl2" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="7" /></filter>
+          <linearGradient id="lp-sg" x1="0" x2="1">
+            <stop offset="0" stopColor="#BDFE2E" stopOpacity=".15" />
+            <stop offset=".45" stopColor="#BDFE2E" />
+            <stop offset="1" stopColor="#9BD020" stopOpacity=".55" />
+          </linearGradient>
+        </defs>
+        <path d="M -160 470 C 260 520, 640 600, 980 680 C 1180 727, 1340 752, 1620 770" fill="none" stroke="url(#lp-sg)" strokeWidth="150" filter="url(#lp-bl1)" />
+        <path d="M -160 470 C 260 520, 640 600, 980 680 C 1180 727, 1340 752, 1620 770" fill="none" stroke="#EEFFC0" strokeOpacity=".85" strokeWidth="16" filter="url(#lp-bl2)" />
+      </svg>
+      <div className="lp-in">
+        <div className="lp-stage lp-hero-stage">
+          <p className="lp-kicker">{m.home.kicker[0]}<br />{m.home.kicker[1]}</p>
+          <h1 className="lp-h1"><span>{m.home.title[0]}</span><span>{m.home.title[1]}</span></h1>
+          <div className="lp-side">
+            <p>{m.home.tagline[0]}<br />{m.home.tagline[1]}</p>
+            <Stores className="is-stack" />
+          </div>
+          <div className="lp-hero-phone st-reveal" ref={phone}>
+            <Phone src={SHOT.trail} alt={m.home.trail.alt} eager />
+          </div>
+          <div className="lp-float" aria-hidden="true"><Icon name="wifiOff" size={40} /></div>
+          <Caption
+            className="lp-hero-cap"
+            icon="map"
+            label={m.home.trail.label}
+            text={m.home.trail.text}
+          />
         </div>
-        <Doodle kind="peaks" size={120} className="st-d st-d-peaks" />
-        <Doodle kind="pine" size={24} className="st-d st-d-pine1" />
-        <Doodle kind="pine" size={18} className="st-d st-d-pine2" />
+      </div>
+    </section>
+  )
+}
+
+function Showcase({ title, caption, shot, alt, reverse = false }: {
+  title: ReactNode[]
+  caption: CaptionProps
+  shot: string
+  alt: string
+  reverse?: boolean
+}) {
+  const head = useReveal<HTMLHeadingElement>()
+  const art = useReveal<HTMLDivElement>()
+  return (
+    <section className={`lp-show${reverse ? ' is-reverse' : ''}`}>
+      <div className="lp-in">
+        <div className="lp-stage lp-show-stage">
+          <h2 className="lp-h2 lp-show-title st-reveal" ref={head}>
+            {title.map((t, i) => (typeof t === 'string' ? <span key={i}>{t}</span> : t))}
+          </h2>
+          <Caption className="lp-show-cap" {...caption} />
+          <div className="lp-show-art st-reveal" ref={art}>
+            <Phone src={shot} alt={alt} />
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/** Độ sáng đích của một dòng tuyên ngôn — CSS đọc qua biến `--o`. */
+const lineOpacity = (o: number) => ({ '--o': o }) as CSSProperties
+
+/** Độ sáng đích của từng dòng tuyên ngôn, từ dòng 1 tới dòng 4 (bản vẽ). */
+const LEGACY_OPACITY = [1, 0.74, 0.5, 0.32]
+
+/** Tên đỉnh là danh từ riêng — giữ nguyên ở mọi ngôn ngữ; độ cao viết theo quy ước số của ngôn ngữ. */
+const RECENT = [
+  { name: 'Fansipan', heightM: 3143 },
+  { name: 'Tà Xùa', heightM: 2865 },
+  { name: 'Lảo Thẩn', heightM: 2860 },
+]
+
+function Statement() {
+  const { m, fmt } = useI18n()
+  const lg = m.home.legacy
+  const art = useReveal<HTMLDivElement>()
+  return (
+    <section className="lp-stm">
+      <div className="lp-in">
+        <div className="lp-stage lp-stm-stage">
+          {/* Từng dòng sáng dần theo cuộn (CSS scroll-driven, có đường lui tĩnh). */}
+          <h2 className="lp-h2 lp-stm-title">
+            {lg.lines.map((line, i) => <span key={i} style={lineOpacity(LEGACY_OPACITY[i])}>{line}</span>)}
+          </h2>
+          <Caption className="lp-stm-cap" icon="flag" label={lg.label} text={lg.text} />
+          <div className="lp-stm-art st-reveal" ref={art}>
+            <Phone src={SHOT.legacy} alt={lg.alt} className="lp-stm-phone" />
+            <div className="lp-frag" aria-label={lg.recentLabel}>
+              <p className="lp-frag-head"><Icon name="check" size={16} />{lg.recent}</p>
+              <ul>
+                {RECENT.map((r) => (
+                  <li key={r.name}>
+                    <span className="lp-frag-icon"><Icon name="mount" /></span>
+                    <span><b>{r.name}</b><em>{fmt.meters(r.heightM)}</em></span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/** Icon của năm tính năng, theo thứ tự `m.home.features.items`. */
+const FEATURE_ICONS: IconName[] = ['map', 'nav', 'flag', 'users', 'buoy']
+
+function Features() {
+  const { m } = useI18n()
+  const f = m.home.features
+  const art = useReveal<HTMLDivElement>()
+  const list = useReveal<HTMLOListElement>()
+  return (
+    <section className="lp-fts">
+      <div className="lp-in lp-fts-in">
+        <div className="lp-fts-left st-reveal" ref={art}>
+          <p className="lp-sec-label">{f.label} /</p>
+          <Phone src={SHOT.recording} alt={f.alt} className="lp-fts-phone" />
+        </div>
+        <ol className="lp-fts-list st-reveal" ref={list}>
+          {f.items.map((it, i) => (
+            <li key={it.title}>
+              <span className="lp-fts-num" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
+              <div>
+                <h3>{it.title}</h3>
+                <p>{it.body}</p>
+              </div>
+              <span className="lp-fts-icon"><Icon name={FEATURE_ICONS[i]} /></span>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
+  )
+}
+
+function Closing() {
+  const { m } = useI18n()
+  const ref = useReveal<HTMLDivElement>()
+  return (
+    <section className="lp-cta" id="tai-app">
+      <Glow className="lp-glow-cta" />
+      <div className="lp-cta-in st-reveal" ref={ref}>
+        <h2 className="lp-h2 lp-cta-title">{m.home.cta.lines.map((l, i) => <span key={i}>{l}</span>)}<Dim>{m.home.cta.dim}</Dim></h2>
+        <p>{m.home.cta.text}</p>
+        <Stores className="is-center" />
       </div>
     </section>
   )

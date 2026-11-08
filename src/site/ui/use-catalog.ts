@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { TrailSummary } from '../core/trails'
 import type { DifficultyBoard } from '../core/difficulty'
-import { fetchCatalog, fetchCatalogCounts, fetchDifficultyBoard } from '../data/catalog'
-import type { CatalogCounts } from '../data/catalog'
+import { fetchCatalog, fetchDifficultyBoard } from '../data/catalog'
 
 export type Loadable<T> =
   | { status: 'loading' }
@@ -32,21 +31,6 @@ export function useCatalog(): [Loadable<TrailSummary[]>, () => void] {
     setAttempt((a) => a + 1)
   }, [])
   return [state, retry]
-}
-
-/** Số lộ trình + điểm đánh dấu (trang chủ). Hỏng thì null — trang vẫn hiện, chỉ thiếu hai con số. */
-export function useCatalogCounts(): CatalogCounts | null {
-  const [counts, setCounts] = useState<CatalogCounts | null>(null)
-  useEffect(() => {
-    let alive = true
-    fetchCatalogCounts()
-      .then((c) => alive && setCounts(c))
-      .catch((e) => console.warn('site: đếm lộ trình / điểm đánh dấu lỗi —', e))
-    return () => {
-      alive = false
-    }
-  }, [])
-  return counts
 }
 
 /**

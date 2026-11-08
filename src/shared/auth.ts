@@ -57,17 +57,16 @@ export async function signInWithGoogle(): Promise<string | null> {
   return error ? error.message : null
 }
 
-export async function signInWithEmail(email: string, password: string): Promise<string | null> {
+/** Vì sao đăng nhập bằng email hỏng: hai lỗi người dùng tự sửa được có mã riêng (câu chữ theo ngôn ngữ do nơi hiển thị quyết); còn lại giữ nguyên lời của máy chủ. */
+export type EmailSignInFailure = { code: 'invalid' | 'unconfirmed' } | { code: 'other'; message: string }
+
+export async function signInWithEmail(email: string, password: string): Promise<EmailSignInFailure | null> {
   const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
   if (!error) return null
   const msg = error.message.toLowerCase()
-  if (error.code === 'invalid_credentials' || msg.includes('invalid login credentials')) {
-    return 'Email hoặc mật khẩu không đúng.'
-  }
-  if (error.code === 'email_not_confirmed' || msg.includes('not confirmed')) {
-    return 'Email này chưa được xác nhận.'
-  }
-  return error.message
+  if (error.code === 'invalid_credentials' || msg.includes('invalid login credentials')) return { code: 'invalid' }
+  if (error.code === 'email_not_confirmed' || msg.includes('not confirmed')) return { code: 'unconfirmed' }
+  return { code: 'other', message: error.message }
 }
 
 /** `scope: 'local'` — chỉ thoát trình duyệt này, không đá văng phiên trên điện thoại. */
@@ -76,10 +75,10 @@ export async function signOut(): Promise<void> {
   if (error) console.warn('auth: đăng xuất lỗi —', error.message)
 }
 
-export function displayName(session: Session): string {
+export function displayName(session: Session, fallback = 'Tài khoản WayTrek'): string {
   const m = session.user.user_metadata ?? {}
   const name = typeof m.full_name === 'string' ? m.full_name : typeof m.name === 'string' ? m.name : ''
-  return name.trim() || session.user.email || 'Tài khoản WayTrek'
+  return name.trim() || session.user.email || fallback
 }
 
 export function avatarUrl(session: Session): string | null {

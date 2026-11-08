@@ -3,8 +3,12 @@
 
 import { lazy, Suspense, useEffect, useState } from 'react'
 import type { ThemeMode } from '@/hooks/useTheme'
-import { DELETE_ACCOUNT_URL, PLAY_URL, PRIVACY_URL, STORE_URL, TERMS_URL } from '@/shared/links'
+import { DELETE_ACCOUNT_URL, PRIVACY_URL, TERMS_URL, playUrlFor, storeUrlFor } from '@/shared/links'
+import { Wordmark } from '@/shared/Wordmark'
+import { useI18n } from '../../i18n/context'
+import { fill } from '../../i18n/text'
 import type { SiteRoute } from '../core/routes'
+import { LanguageSwitch } from './LanguageSwitch'
 import { Link } from './Link'
 
 const Account = lazy(() => import('./Account'))
@@ -17,6 +21,7 @@ const Moon = () => (
 )
 
 export function SiteHeader({ page, mode, onToggleTheme }: { page: SiteRoute['page']; mode: ThemeMode; onToggleTheme(): void }) {
+  const { locale, m } = useI18n()
   // Viền dưới chỉ hiện khi đã cuộn — ở đầu trang, đầu trang tan vào nền giấy.
   const [scrolled, setScrolled] = useState(false)
   useEffect(() => {
@@ -26,35 +31,30 @@ export function SiteHeader({ page, mode, onToggleTheme }: { page: SiteRoute['pag
     return () => window.removeEventListener('scroll', on)
   }, [])
   const dark = mode === 'dark'
+  const toggleLabel = dark ? m.chrome.toLight : m.chrome.toDark
   return (
-    <header className={`st-head${scrolled || page === 'map' ? ' is-scrolled' : ''}`}>
+    <header className={`st-head${scrolled || page === 'map' ? ' is-scrolled' : ''}${page === 'home' ? ' is-over-hero' : ''}`}>
       <div className="st-head-in">
-        <Link to="/" className="st-brand" aria-label="WayTrek — trang chủ" data-tip="Về trang chủ WayTrek">
-          <img src="/icon-256.png" alt="" width={28} height={28} />
-          <span>WayTrek</span>
+        <Link to="/" className="st-brand" aria-label={m.chrome.homeLabel} data-tip={m.chrome.homeTip}>
+          <Wordmark />
         </Link>
-        <nav className="st-nav" aria-label="Mục chính">
-          <Link to="/map" className={page === 'map' || page === 'trail' ? 'is-on' : undefined} data-tip="Bản đồ và danh sách mọi cung núi">
-            Khám phá
+        <nav className="st-nav" aria-label={m.chrome.navLabel}>
+          <Link to="/map" className={page === 'map' || page === 'trail' ? 'is-on' : undefined} data-tip={m.chrome.exploreTip}>
+            {m.chrome.explore}
           </Link>
-          <a href="/plan" data-tip="Lên lịch từng giờ cho chuyến trek, tính trên địa hình thật">
-            <span className="st-nav-long">Lên kế hoạch</span><span className="st-nav-short">Kế hoạch</span>
+          <a href="/plan" data-tip={m.chrome.planTip}>
+            <span className="st-nav-long">{m.chrome.plan}</span><span className="st-nav-short">{m.chrome.planShort}</span>
           </a>
         </nav>
         <div className="st-head-right">
-          <button
-            type="button"
-            className="st-icon-btn"
-            onClick={onToggleTheme}
-            aria-label={dark ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
-            data-tip={dark ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
-          >
+          <LanguageSwitch variant="icon" />
+          <button type="button" className="st-icon-btn" onClick={onToggleTheme} aria-label={toggleLabel} data-tip={toggleLabel}>
             {dark ? <Sun /> : <Moon />}
           </button>
           <Suspense fallback={<span className="st-account-slot" aria-hidden="true" />}>
             <Account />
           </Suspense>
-          <a className="st-btn st-btn-primary st-head-cta" href={STORE_URL} target="_blank" rel="noopener" data-tip="Mở trang WayTrek trên App Store">Tải app</a>
+          <a className="st-btn st-btn-primary st-head-cta" href={storeUrlFor(locale)} target="_blank" rel="noopener" data-tip={m.chrome.getAppTip}>{m.chrome.getApp}</a>
         </div>
       </div>
     </header>
@@ -62,31 +62,35 @@ export function SiteHeader({ page, mode, onToggleTheme }: { page: SiteRoute['pag
 }
 
 export function SiteFooter() {
+  const { locale, m } = useI18n()
   return (
     <footer className="st-foot">
       <div className="st-wrap st-foot-grid">
         <div className="st-foot-brand">
-          <Link to="/" className="st-brand"><img src="/icon-256.png" alt="" width={28} height={28} /><span>WayTrek</span></Link>
-          <p>WayTrek được làm ra cho những người tin rằng mỗi ngọn núi Việt Nam đều xứng đáng có một tấm bản đồ tử tế.</p>
+          <Link to="/" className="st-brand" aria-label={m.chrome.homeLabel}><Wordmark /></Link>
+          <p>{m.chrome.footAbout}</p>
         </div>
-        <nav aria-label="Khám phá">
-          <h3>Khám phá</h3>
-          <Link to="/map">Bản đồ cung núi</Link>
-          <a href="/plan">Lên kế hoạch chuyến đi</a>
+        <nav aria-label={m.chrome.footExplore}>
+          <h3>{m.chrome.footExplore}</h3>
+          <Link to="/map">{m.chrome.footMap}</Link>
+          <a href="/plan">{m.chrome.footPlan}</a>
         </nav>
-        <nav aria-label="Ứng dụng">
-          <h3>Ứng dụng</h3>
-          <a href={STORE_URL} target="_blank" rel="noopener">App Store</a>
-          <a href={PLAY_URL} target="_blank" rel="noopener">CH Play</a>
+        <nav aria-label={m.chrome.footApp}>
+          <h3>{m.chrome.footApp}</h3>
+          <a href={storeUrlFor(locale)} target="_blank" rel="noopener">{m.chrome.footAppStore}</a>
+          <a href={playUrlFor(locale)} target="_blank" rel="noopener">{m.chrome.footPlay}</a>
         </nav>
-        <nav aria-label="Pháp lý">
-          <h3>Pháp lý</h3>
-          <a href={PRIVACY_URL} target="_blank" rel="noopener">Quyền riêng tư</a>
-          <a href={TERMS_URL} target="_blank" rel="noopener">Điều khoản</a>
-          <a href={DELETE_ACCOUNT_URL} target="_blank" rel="noopener">Xoá tài khoản</a>
+        <nav aria-label={m.chrome.footLegal}>
+          <h3>{m.chrome.footLegal}</h3>
+          <a href={PRIVACY_URL} target="_blank" rel="noopener">{m.chrome.privacy}</a>
+          <a href={TERMS_URL} target="_blank" rel="noopener">{m.chrome.terms}</a>
+          <a href={DELETE_ACCOUNT_URL} target="_blank" rel="noopener">{m.chrome.deleteAccount}</a>
         </nav>
       </div>
-      <div className="st-wrap st-foot-base">© {new Date().getFullYear()} WayTrek. Dữ liệu bản đồ © OpenStreetMap.</div>
+      <div className="st-wrap st-foot-base">
+        <span>{fill(m.chrome.copyright, { year: new Date().getFullYear() })}</span>
+        <LanguageSwitch variant="field" />
+      </div>
     </footer>
   )
 }

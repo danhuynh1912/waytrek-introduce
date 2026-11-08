@@ -19,7 +19,9 @@ export default function SiteApp() {
   const [mode, toggleTheme] = useTheme()
   const dark = mode === 'dark'
   return (
-    <div className="st">
+    // Trang chủ CỐ Ý luôn tối (bản vẽ chỉ có nền tối) — `wt-dark` đổi token cho
+    // cả khối, kể cả đầu / chân trang; các trang khác theo theme người dùng chọn.
+    <div className={`st${route.page === 'home' ? ' wt-dark' : ''}`}>
       <SiteHeader page={route.page} mode={mode} onToggleTheme={toggleTheme} />
       <main className="st-main">
         <Suspense fallback={<div className="st-page-loading" aria-label="Đang tải" />}>

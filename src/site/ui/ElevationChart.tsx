@@ -4,7 +4,7 @@
 
 import { useRef, useState } from 'react'
 import type { PointerEvent } from 'react'
-import { distance, meters } from '@/shared/format'
+import { useI18n } from '../../i18n/context'
 import { pointAtDistance } from '../core/geometry'
 import type { Profile, ProfilePoint } from '../core/geometry'
 
@@ -14,6 +14,7 @@ const PAD_TOP = 10
 const PAD_BOTTOM = 6
 
 export function ElevationChart({ profile, onHover }: { profile: Profile; onHover(p: ProfilePoint | null): void }) {
+  const { distance, meters } = useI18n().fmt
   const box = useRef<HTMLDivElement>(null)
   const [at, setAt] = useState<ProfilePoint | null>(null)
   const span = Math.max(1, profile.maxEle - profile.minEle)

@@ -1,19 +1,21 @@
+import { useI18n } from '../../i18n/context'
 import { Link } from '../ui/Link'
 import { Doodle } from '../ui/Doodle'
 import { usePageMeta } from '../ui/page-meta'
 import { useReveal } from '../ui/use-reveal'
 
 export function NotFoundPage() {
-  usePageMeta({ title: 'Không tìm thấy trang · WayTrek', path: window.location.pathname, noindex: true })
+  const { m } = useI18n()
+  usePageMeta({ title: m.seo.notFoundTitle, path: '/', noindex: true })
   const ref = useReveal<HTMLDivElement>()
   return (
     <div className="st-wrap st-empty st-reveal" ref={ref}>
       <Doodle kind="compass" size={56} className="st-empty-doodle" />
-      <h1 className="st-h2 st-h2-plain">Lối này chưa có trên bản đồ</h1>
-      <p className="st-body">Đường dẫn bạn mở không dẫn tới trang nào của WayTrek, nhưng những cung núi thật vẫn đang chờ bạn ở trang khám phá.</p>
+      <h1 className="st-h2 st-h2-plain">{m.notFound.title}</h1>
+      <p className="st-body">{m.notFound.text}</p>
       <div className="st-cta-row">
-        <Link to="/map" className="st-btn st-btn-primary" data-tip="Xem mọi cung núi đang công khai">Mở bản đồ cung núi</Link>
-        <Link to="/" className="st-btn st-btn-quiet" data-tip="Về trang chủ WayTrek">Về trang chủ</Link>
+        <Link to="/map" className="st-btn st-btn-primary" data-tip={m.notFound.openMapTip}>{m.notFound.openMap}</Link>
+        <Link to="/" className="st-btn st-btn-quiet" data-tip={m.notFound.homeTip}>{m.notFound.home}</Link>
       </div>
     </div>
   )

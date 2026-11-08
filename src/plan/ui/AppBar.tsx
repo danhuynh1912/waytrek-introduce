@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { ThemeMode } from '@/hooks/useTheme'
 import { avatarUrl, displayName, signOut } from '@/shared/auth'
+import { Wordmark } from '@/shared/Wordmark'
 import { navigate } from './route'
 
 const Sun = () => (
@@ -25,8 +26,7 @@ export function AppBar({
   return (
     <header className="pl-top">
       <a className="pl-brand" href="/" aria-label="WayTrek — trang chủ" data-tip="Về trang chủ WayTrek">
-        <img src="/icon-256.png" alt="" width={26} height={26} />
-        <span className="pl-brand-name">WayTrek</span>
+        <Wordmark />
         <span className="pl-brand-sub">Kế hoạch</span>
       </a>
       <nav className="pl-top-right">

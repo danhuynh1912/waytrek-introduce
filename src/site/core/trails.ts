@@ -27,20 +27,24 @@ export interface TrailSummary {
   description: string | null
 }
 
-const LABEL: Record<Difficulty, string> = {
-  easy: 'Dễ',
-  moderate: 'Trung bình',
-  hard: 'Khó',
-  expert: 'Chuyên gia',
+/** Nhãn độ khó của một ngôn ngữ (`messages.difficulty`). */
+export interface DifficultyLabels {
+  easy: string
+  moderate: string
+  hard: string
+  expert: string
+  superhuman: string
 }
 
-export function difficultyLabel(t: Pick<TrailSummary, 'difficulty' | 'difficultyTitle'>): string {
-  return t.difficultyTitle === 'superhuman' ? 'Siêu nhân' : LABEL[t.difficulty] ?? 'Trung bình'
+const VI_LABELS: DifficultyLabels = { easy: 'Dễ', moderate: 'Trung bình', hard: 'Khó', expert: 'Chuyên gia', superhuman: 'Siêu nhân' }
+
+export function difficultyLabel(t: Pick<TrailSummary, 'difficulty' | 'difficultyTitle'>, labels: DifficultyLabels = VI_LABELS): string {
+  return t.difficultyTitle === 'superhuman' ? labels.superhuman : labels[t.difficulty] ?? labels.moderate
 }
 
 /** Số đo của cung: "7,2 km · ↑2.063 m" (điểm độ khó vẽ riêng, có màu). Thiếu số nào thì bỏ số đó, không ghi 0. */
-export function trailMeta(t: TrailSummary): string {
-  return [t.distanceM != null ? distance(t.distanceM) : null, t.gainM != null ? `↑${meters(t.gainM)}` : null]
+export function trailMeta(t: TrailSummary, fmt: { distance(m: number): string; meters(m: number): string } = { distance, meters }): string {
+  return [t.distanceM != null ? fmt.distance(t.distanceM) : null, t.gainM != null ? `↑${fmt.meters(t.gainM)}` : null]
     .filter(Boolean)
     .join(' · ')
 }

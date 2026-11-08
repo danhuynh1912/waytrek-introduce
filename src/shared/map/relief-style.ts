@@ -110,7 +110,7 @@ export function darkPaintFor(l: Layer): Json | null {
  * Bản sao của style gốc có thêm nguồn độ cao, nền đất theo độ cao và bóng sườn;
  * `dark` thì tô lại mọi lớp. THUẦN: không sửa object đầu vào.
  */
-export function reliefStyle<T extends Json>(base: T, opts: { demTiles: string; dark: boolean }): T {
+export function reliefStyle<T extends Json>(base: T, opts: { demTiles: string; dark: boolean; attribution?: string }): T {
   const { demTiles, dark } = opts
   const out: Json = { ...base }
   out.sources = {
@@ -122,7 +122,7 @@ export function reliefStyle<T extends Json>(base: T, opts: { demTiles: string; d
       encoding: 'terrarium',
       // z13 như app: z12 nhoè khi zoom sát tuyến, z14 lộ nhiễu radar của SRTM.
       maxzoom: 13,
-      attribution: 'Độ cao: Terrain Tiles',
+      attribution: opts.attribution ?? 'Độ cao: Terrain Tiles',
     },
   }
 

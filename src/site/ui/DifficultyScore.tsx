@@ -1,4 +1,6 @@
 import type { CSSProperties } from 'react'
+import { useI18n } from '../../i18n/context'
+import { fill } from '../../i18n/text'
 import { difficultyRankColor, formatDifficultyScore } from '../core/difficulty'
 import type { DifficultyBoard } from '../core/difficulty'
 import { difficultyLabel } from '../core/trails'
@@ -10,16 +12,17 @@ import type { TrailSummary } from '../core/trails'
  * Bảng chưa có điểm của cung → nhãn chữ, mờ hơn (đường lui giống app).
  */
 export function DifficultyScore({ t, board, className }: { t: TrailSummary; board: DifficultyBoard | null; className?: string }) {
+  const { m, fmt } = useI18n()
   const s = board?.byTrail.get(t.id)
-  if (!s || !board) return <span className={`st-score is-label${className ? ` ${className}` : ''}`}>{difficultyLabel(t)}</span>
+  if (!s || !board) return <span className={`st-score is-label${className ? ` ${className}` : ''}`}>{difficultyLabel(t, m.difficulty)}</span>
   const style = {
     '--dc-l': difficultyRankColor(s.rank, board.count, false),
     '--dc-d': difficultyRankColor(s.rank, board.count, true),
   } as CSSProperties
   return (
-    <span className={`st-score${className ? ` ${className}` : ''}`} style={style} title={`Điểm độ khó, hạng ${s.rank}/${board.count}`}>
+    <span className={`st-score${className ? ` ${className}` : ''}`} style={style} title={fill(m.difficulty.scoreTitle, { rank: s.rank, total: board.count })}>
       <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><path d="M13.5 2 4.5 13.5h6L9.5 22l9-11.5h-6z" /></svg>
-      {formatDifficultyScore(s.score)}
+      {formatDifficultyScore(s.score, fmt)}
     </span>
   )
 }

@@ -54,33 +54,6 @@ export function fetchDifficultyBoard(): Promise<DifficultyBoard> {
   return boardP
 }
 
-export interface CatalogCounts {
-  routes: number
-  pois: number
-  /** Lượt ghi danh CÓ MẶT TRÊN BẢNG VÀNG (mọi mùa): `auto`/`manual` và thuộc một mùa. */
-  boardConquests: number
-}
-
-/**
- * Số lộ trình, số điểm đánh dấu và số lượt ghi danh trên Bảng Vàng — chỉ đếm
- * (HEAD), không kéo dòng nào. Lượt ghi danh lọc đúng hai vế mà Bảng Vàng dùng
- * (`_leaderboard_ranked`: `verify_status in (auto, manual)` + có `season_id`),
- * nên tự khai / đóng góp GPX không được cộng vào con số khoe ở trang chủ.
- */
-export async function fetchCatalogCounts(): Promise<CatalogCounts> {
-  const sb = await client()
-  const signal = AbortSignal.timeout(READ_TIMEOUT_MS)
-  const [routes, pois, board] = await Promise.all([
-    sb.from('trail_routes').select('id, trails!inner(is_public)', { count: 'exact', head: true })
-      .is('deleted_at', null).eq('trails.is_public', true).is('trails.deleted_at', null).abortSignal(signal),
-    sb.from('poi_points').select('id', { count: 'exact', head: true }).is('deleted_at', null).abortSignal(signal),
-    sb.from('conquests').select('id', { count: 'exact', head: true })
-      .in('verify_status', ['auto', 'manual']).not('season_id', 'is', null).abortSignal(signal),
-  ])
-  for (const r of [routes, pois, board]) if (r.error) throw new Error(r.error.message)
-  return { routes: routes.count ?? 0, pois: pois.count ?? 0, boardConquests: board.count ?? 0 }
-}
-
 export interface RouteMeta {
   id: string
   name: string

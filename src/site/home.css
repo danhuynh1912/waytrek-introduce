@@ -1,0 +1,261 @@
+/* Trang chủ waytrek.site — bản vẽ "Trang web waytrek.site" (canvas 5/11).
+   Ba bề ngang như bản vẽ: desktop (> 1100), tablet (≤ 1100), mobile (≤ 600).
+
+   Desktop dựng trên khung 1440: mọi toạ độ của bản vẽ nhân với --u (1/1440 bề
+   ngang của .lp-in), nên từ 1101 tới 1440 cả bố cục co đúng tỉ lệ thay vì đè
+   lên nhau; trên 1440 khung đứng giữa, còn quầng sáng / vệt sáng trải hết bề
+   ngang. Tablet và mobile chuyển sang dòng chảy dọc.
+
+   Khối này luôn tối (.wt-dark ở SiteApp): màu đọc từ token, trừ hai nút cửa
+   hàng TRẮNG trên nền tối — mặt cố định như trong bản vẽ. */
+
+.lp {
+  --u: calc(100cqw / 1440);
+  /* Công thức quầng sáng của app (WtGlowPainter): tâm ngà, mép tan hẳn, không ranh giới gãy. */
+  --lp-glow: radial-gradient(closest-side, rgba(214, 230, 160, 1) 0%, rgba(212, 229, 156, 0.995) 4.2%, rgba(203, 223, 137, 0.982) 8.3%,
+    rgba(190, 215, 110, 0.96) 12.5%, rgba(180, 208, 88, 0.93) 16.7%, rgba(176, 206, 80, 0.893) 20.8%, rgba(175, 205, 79, 0.85) 25%,
+    rgba(167, 198, 72, 0.802) 29.2%, rgba(153, 186, 58, 0.749) 33.3%, rgba(138, 172, 43, 0.694) 37.5%, rgba(129, 165, 35, 0.637) 41.7%,
+    rgba(128, 164, 34, 0.579) 45.8%, rgba(128, 164, 34, 0.522) 50%, rgba(126, 162, 33, 0.466) 54.2%, rgba(122, 158, 32, 0.411) 58.3%,
+    rgba(117, 152, 30, 0.349) 62.5%, rgba(110, 144, 28, 0.279) 66.7%, rgba(102, 136, 25, 0.207) 70.8%, rgba(94, 127, 22, 0.14) 75%,
+    rgba(86, 118, 20, 0.084) 79.2%, rgba(80, 111, 17, 0.044) 83.3%, rgba(75, 105, 16, 0.018) 87.5%, rgba(72, 102, 15, 0.005) 91.7%,
+    rgba(70, 100, 14, 0) 100%);
+  position: relative;
+  /* Luồn lên dưới đầu trang (trong suốt ở đỉnh trang chủ) để quầng sáng chạm mép trên. */
+  margin-top: -64px;
+  overflow: clip;
+  background: var(--bg);
+  color: var(--text);
+}
+.lp p { margin: 0; }
+.lp-in { position: relative; z-index: 2; width: min(1440px, 100%); margin-inline: auto; container-type: inline-size; }
+.lp-stage { position: relative; }
+.lp-stage > * { position: absolute; }
+
+/* ---------- Mảnh dùng chung ---------- */
+.lp-h2 { margin: 0; font-weight: 500; letter-spacing: -0.035em; display: flex; flex-direction: column; }
+.lp-dim { opacity: 0.5; }
+
+.lp-pill {
+  height: 56px; padding: 0 24px; border-radius: 28px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  font-weight: 600; font-size: 16px; white-space: nowrap;
+  transition: transform var(--press-out), background var(--press-out), border-color 0.2s var(--ease-inout);
+}
+.lp-pill:active { transform: scale(0.97); transition: transform var(--press-in), background var(--press-in); }
+.lp-pill.is-white { background: #F7F7F7; color: #0A0A0A; }
+.lp-pill.is-white:active { background: #E0E0DB; }
+.lp-pill.is-line { border: 1px solid var(--border-strong); color: var(--text); background: rgba(10, 10, 10, 0.4); }
+.lp-pill.is-line:hover { border-color: var(--text-faint); }
+.lp-pill.is-line:active { background: var(--overlay-10); }
+.lp-stores { display: flex; flex-wrap: wrap; gap: 12px; }
+.lp-stores.is-stack { flex-direction: column; align-items: flex-start; margin-top: 28px; }
+.lp-stores.is-center { justify-content: center; margin-top: 40px; }
+
+.lp-cap { width: max(260px, calc(330 * var(--u))); font-size: 15px; line-height: 1.5; color: var(--text); }
+.lp-cap-icon { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--border-strong); color: var(--text-muted); }
+.lp-cap-label { margin: 18px 0 12px !important; font-size: 14px; color: var(--text-hint); }
+.lp-cap-text { max-width: 300px; }
+.lp-cap-link {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-top: 6px;
+  font-weight: 600; color: var(--accent-ink);
+}
+.lp-cap-link svg { transition: transform 0.22s var(--ease-inout); }
+.lp-cap-link:hover svg { transform: translateX(3px); }
+
+/* Vệt sáng + quầng dịu hơn bản vẽ ~25% (chủ sản phẩm 8/11: trên màn thật lime
+   đậm hơn cảm giác ở canvas). Nút lime giữ đúng màu chuẩn — chỉ "sơn" dịu đi. */
+.lp { --lp-paint: 0.75; }
+.lp-glow { position: absolute; z-index: 0; background: var(--lp-glow); pointer-events: none; opacity: var(--lp-paint); }
+
+/* ---------- Mở đầu ---------- */
+.lp-hero { position: relative; padding-top: 64px; }
+.lp-glow-hero { right: -480px; top: -454px; width: 1000px; height: 740px; opacity: calc(0.9 * var(--lp-paint)); }
+.lp-streak { position: absolute; z-index: 1; left: 0; top: 64px; width: 100%; height: min(1000px, 69.4vw); pointer-events: none; opacity: var(--lp-paint); }
+.lp-bgword {
+  position: absolute; z-index: 1; left: 0; right: 0; top: calc(64px + min(430px, 29.9vw));
+  text-align: center; white-space: nowrap; overflow: hidden; pointer-events: none; user-select: none;
+  font-weight: 600; font-size: min(340px, 23.6vw); line-height: 1; letter-spacing: -0.045em; color: rgba(247, 247, 247, 0.045);
+}
+/* Chữ mở đầu nhỏ hơn bản vẽ (150 → 124) để máy dịch lên 70 — chủ sản phẩm 8/11; khối ngắn đi tương ứng. */
+.lp-hero-stage { height: calc(1010 * var(--u)); }
+.lp-kicker { left: calc(64 * var(--u)); top: calc(56 * var(--u)); z-index: 3; font-size: 14px; line-height: 1.45; color: var(--text-muted); }
+.lp-h1 {
+  /* Chữ nhỏ lại thì dời sang phải: khối chữ (~800) nằm giữa mép phải dòng giới thiệu và lề phải 64. */
+  left: calc(440 * var(--u)); top: calc(20 * var(--u)); z-index: 2; margin: 0;
+  display: flex; flex-direction: column;
+  font-weight: 500; font-size: calc(124 * var(--h1-k, 1) * var(--u)); line-height: var(--h1-lh, 0.92); letter-spacing: -0.04em; padding-bottom: 0.16em;
+  background: linear-gradient(180deg, #F7F7F7 0%, #F7F7F7 38%, #8C8C8C 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.lp-side { left: calc(64 * var(--u)); top: calc(640 * var(--u)); z-index: 4; font-size: max(15px, calc(17 * var(--u))); line-height: 1.45; }
+.lp-hero-phone { left: calc(540 * var(--u)); top: calc(270 * var(--u)); z-index: 3; }
+.lp-hero-phone .st-phone {
+  --pw: calc(355 * var(--u));
+  transform: perspective(1800px) rotateY(-16deg) rotateX(7deg) rotateZ(-7deg);
+  animation: lp-drift 7s ease-in-out infinite;
+}
+.lp-float {
+  left: calc(380 * var(--u)); top: calc(478 * var(--u)); z-index: 4;
+  width: 88px; height: 88px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  color: var(--text); background: rgba(18, 18, 18, 0.72); border: 1px solid var(--border-strong);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  animation: lp-bob 6s ease-in-out infinite;
+}
+.lp-hero-cap { left: calc(1030 * var(--u)); top: calc(330 * var(--u)); z-index: 4; }
+@keyframes lp-drift { 0%, 100% { translate: 0 0; } 50% { translate: 0 -16px; } }
+@keyframes lp-bob { 0%, 100% { transform: translateY(0) rotate(-6deg); } 50% { transform: translateY(-14px) rotate(-6deg); } }
+
+/* ---------- Khối máy + tiêu đề lớn (bản đồ đỉnh, chia sẻ) ---------- */
+.lp-show-stage { height: calc(940 * var(--u)); }
+.lp-show-title { left: calc(64 * var(--u)); top: calc(140 * var(--u)); z-index: 3; font-size: calc(96 * var(--u)); line-height: var(--h2-lh, 1); }
+.lp-show-cap { left: calc(64 * var(--u)); top: calc(560 * var(--u)); z-index: 3; }
+.lp-show-art { right: calc(120 * var(--u)); top: calc(120 * var(--u)); width: calc(640 * var(--u)); height: calc(820 * var(--u)); }
+.lp-show-art .st-phone { position: absolute; right: calc(40 * var(--u)); top: 0; --pw: calc(355 * var(--u)); transform: rotate(5deg); }
+.lp-show.is-reverse .lp-show-title { left: auto; right: calc(64 * var(--u)); align-items: flex-end; text-align: right; }
+.lp-show.is-reverse .lp-show-cap { left: auto; right: calc(64 * var(--u)); }
+.lp-show.is-reverse .lp-show-art { right: auto; left: calc(120 * var(--u)); }
+.lp-show.is-reverse .lp-show-art .st-phone { right: auto; left: calc(40 * var(--u)); transform: rotate(-5deg); }
+
+/* ---------- Tuyên ngôn di sản ---------- */
+.lp-stm-stage { height: calc(1060 * var(--u)); }
+.lp-stm-title { left: calc(64 * var(--u)); top: calc(120 * var(--u)); z-index: 3; font-size: calc(66 * var(--u)); line-height: var(--h2-lh, 1.06); }
+.lp-stm-title span { opacity: var(--o); }
+.lp-stm-cap { left: calc(64 * var(--u)); top: calc(660 * var(--u)); z-index: 3; }
+.lp-stm-art { right: calc(150 * var(--u)); top: calc(300 * var(--u)); width: calc(620 * var(--u)); height: calc(760 * var(--u)); }
+.lp-stm-phone { position: absolute; right: 0; top: 0; --pw: calc(348 * var(--u)); }
+.lp-frag {
+  position: absolute; left: 0; top: calc(330 * var(--u)); z-index: 3; width: 300px; padding: 18px 20px;
+  display: flex; flex-direction: column; gap: 14px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+}
+.lp-frag-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--accent-ink); }
+.lp-frag ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.lp-frag li { display: flex; align-items: center; gap: 12px; }
+.lp-frag b { display: block; font-size: 15px; font-weight: 600; }
+.lp-frag em { display: block; font-style: normal; font-size: 13px; color: var(--text-hint); }
+.lp-frag-icon { flex: none; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--surface-2); }
+
+/* Từng dòng tuyên ngôn sáng dần theo cuộn. Trình duyệt chưa có scroll-driven
+   animation thì đứng yên ở độ sáng đích (--o) — nội dung không bị giấu. */
+@supports (animation-timeline: view()) {
+  .lp-stm-title span { animation: lp-line linear both; animation-timeline: view(); animation-range: entry 0% cover 45%; }
+  @keyframes lp-line { from { opacity: 0.1; } to { opacity: var(--o); } }
+}
+
+/* ---------- Tính năng ---------- */
+.lp-fts { border-top: 1px solid var(--surface-2); }
+.lp-fts-in { display: flex; gap: calc(120 * var(--u)); padding: calc(120 * var(--u)) calc(64 * var(--u)) calc(140 * var(--u)); }
+.lp-fts-left { width: calc(420 * var(--u)); flex: none; }
+.lp-sec-label { margin-bottom: 48px !important; font-size: 14px; color: var(--text-hint); }
+.lp-fts-phone { --pw: calc(355 * var(--u)); }
+.lp-fts-list { flex: 1; list-style: none; margin: 0; padding: 40px 0 0; display: flex; flex-direction: column; }
+.lp-fts-list li { display: flex; gap: 32px; align-items: flex-start; padding: 36px 0; border-top: 1px solid var(--border); }
+.lp-fts-list li:last-child { border-bottom: 1px solid var(--border); }
+.lp-fts-list li > div { flex: 1; }
+.lp-fts-num { flex: none; width: 40px; padding-top: 6px; font-family: var(--font-num); font-weight: 700; font-size: 20px; color: var(--text-faint); }
+.lp-fts-list h3 { margin: 0 0 10px; font-size: 32px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; }
+.lp-fts-list p { max-width: 520px; font-size: 17px; line-height: 1.5; color: var(--text-2); }
+.lp-fts-icon { flex: none; padding-top: 8px; color: var(--text-hint); }
+
+/* ---------- Kêu gọi tải ---------- */
+.lp-cta { position: relative; padding: 180px 64px 240px; text-align: center; }
+.lp-glow-cta { left: 50%; bottom: -760px; width: 1800px; height: 1240px; margin-left: -900px; }
+.lp-cta-in { position: relative; z-index: 2; }
+.lp-cta-title { align-items: center; font-size: min(112px, 7.8vw); line-height: var(--h2-lh, 0.98); }
+.lp-cta-in > p { margin-top: 28px !important; font-size: 18px; color: var(--text-2); }
+
+/* ---------- Tablet ---------- */
+@media (max-width: 1100px) {
+  .lp-stage { height: auto; display: flex; flex-direction: column; }
+  .lp-stage > *,
+  .lp-show.is-reverse .lp-stage > * { position: relative; left: auto; right: auto; top: auto; }
+
+  .lp-glow-hero { right: -380px; top: -436px; }
+  .lp-streak { top: 244px; height: 900px; }
+  .lp-bgword { top: 364px; font-size: 220px; }
+  .lp-hero-stage { padding: 24px 40px 80px; }
+  .lp-kicker { order: 1; }
+  .lp-h1 { order: 2; margin-top: 20px; font-size: calc(clamp(40px, 12.4vw, 104px) * var(--h1-k, 1)); }
+  .lp-side { order: 3; margin-top: 28px; font-size: 17px; }
+  .lp-stores.is-stack { flex-direction: row; }
+  .lp-hero-phone { order: 4; align-self: center; margin-top: 48px; }
+  .lp-hero-phone .st-phone { --pw: 324px; }
+  .lp-hero-cap { order: 5; margin-top: 56px; }
+  .lp-float { display: none; }
+  .lp-cap { width: auto; }
+
+  .lp-show-stage { padding: 100px 40px; }
+  .lp-show-title, .lp-show.is-reverse .lp-show-title { order: 1; font-size: clamp(38px, 9.4vw, 76px); align-items: flex-start; text-align: left; }
+  .lp-show-art, .lp-show.is-reverse .lp-show-art { order: 2; width: 100%; height: 800px; margin-top: 48px; }
+  .lp-show-art .st-phone, .lp-show.is-reverse .lp-show-art .st-phone { left: auto; right: 60px; --pw: 355px; transform: rotate(5deg); }
+  .lp-show-cap { order: 3; margin-top: 40px; }
+
+  .lp-stm-stage { padding: 100px 40px; }
+  .lp-stm-title { order: 1; font-size: clamp(34px, 7.2vw, 60px); }
+  .lp-stm-art { order: 2; width: 100%; height: 760px; margin-top: 64px; }
+  .lp-stm-phone { right: 40px; --pw: 348px; }
+  .lp-frag { top: 300px; }
+  .lp-stm-cap { order: 3; margin-top: 48px; }
+
+  .lp-fts-in { flex-direction: column; gap: 56px; padding: 100px 40px; }
+  .lp-fts-left { width: auto; display: flex; flex-direction: column; align-items: center; }
+  .lp-sec-label { align-self: flex-start; }
+  .lp-fts-phone { --pw: 324px; }
+  .lp-fts-list { padding-top: 0; }
+  .lp-fts-list h3 { font-size: 28px; }
+
+  .lp-cta { padding: 140px 40px 260px; }
+  .lp-cta-title { font-size: clamp(42px, 10.5vw, 84px); }
+}
+
+/* ---------- Mobile ---------- */
+@media (max-width: 600px) {
+  .lp-glow-hero { right: -380px; top: -336px; width: 760px; height: 560px; }
+  /* Máy đứng đầu nên vệt sáng kéo lên theo, cắt ngang giữa máy. */
+  .lp-streak { top: -10px; height: 620px; }
+  .lp-bgword { top: 444px; font-size: 110px; }
+  .lp-hero-stage { padding: 16px 20px 56px; }
+  .lp-kicker { font-size: 13px; }
+  .lp-h1 { margin-top: 16px; font-size: calc(46px * var(--h1-k, 1)); }
+  .lp-side { margin-top: 20px; font-size: 15px; }
+  .lp-stores, .lp-stores.is-stack { flex-direction: column; align-items: stretch; width: 100%; }
+  .lp-pill { width: 100%; }
+  /* Mobile: máy lên đầu, trước tiêu đề và hai nút tải (chủ sản phẩm 8/11) — màn hình
+     app là thứ đầu tiên người ta thấy khi mở trang trên điện thoại. */
+  .lp-hero-phone { order: 0; margin: 8px 0 36px; }
+  .lp-hero-phone .st-phone { --pw: 262px; transform: perspective(1400px) rotateY(-12deg) rotateX(6deg) rotateZ(-6deg); }
+  .lp-hero-cap { margin-top: 44px; }
+  .lp-cap-text { max-width: none; }
+
+  .lp-stm-stage { padding: 72px 20px; }
+  .lp-stm-title { font-size: 36px; line-height: var(--h2-lh, 1.08); }
+  .lp-stm-art { height: 600px; margin-top: 44px; }
+  .lp-stm-phone { right: 0; --pw: 262px; }
+  .lp-frag { left: -4px; top: 372px; width: 220px; padding: 14px; gap: 10px; }
+  .lp-frag ul { gap: 10px; }
+  .lp-frag-icon { width: 34px; height: 34px; }
+  .lp-frag b { font-size: 14px; }
+
+  .lp-fts-in { padding: 72px 20px; gap: 40px; }
+  .lp-fts-phone { --pw: 262px; }
+  .lp-fts-list li { gap: 16px; padding: 26px 0; }
+  .lp-fts-num { width: 28px; padding-top: 4px; font-size: 16px; }
+  .lp-fts-list h3 { font-size: 22px; }
+  .lp-fts-list p { font-size: 15px; }
+  .lp-fts-icon { display: none; }
+
+  .lp-show-stage { padding: 72px 20px; }
+  .lp-show-title, .lp-show.is-reverse .lp-show-title { font-size: 40px; }
+  .lp-show-art, .lp-show.is-reverse .lp-show-art { height: 620px; margin-top: 40px; }
+  .lp-show-art .st-phone, .lp-show.is-reverse .lp-show-art .st-phone { right: 4px; --pw: 262px; }
+
+  .lp-cta { padding: 96px 20px 200px; }
+  .lp-cta-title { font-size: 44px; }
+  .lp-cta-in > p { font-size: 16px; }
+  .lp-glow-cta { width: 1100px; margin-left: -550px; bottom: -560px; height: 900px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-hero-phone .st-phone, .lp-float, .lp-stm-title span { animation: none; }
+  .lp-float { transform: rotate(-6deg); }
+}

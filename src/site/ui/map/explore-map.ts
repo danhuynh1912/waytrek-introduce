@@ -6,12 +6,16 @@ import type { GeoJSONSource, Map as MlMap } from 'maplibre-gl'
 import type { FeatureCollection } from 'geojson'
 import { LABEL_FONT, MAP_INK } from '@/shared/map/ink'
 import { ReliefMap } from '@/shared/map/relief-map'
+import type { ReliefMapTexts } from '@/shared/map/relief-map'
 import { hideTipAt, showTipAt } from '@/shared/tooltip'
 import type { TrailSummary } from '../../core/trails'
 
 export interface ExploreMapHandlers {
   onSelect(trailId: string | null): void
   onFatal(message: string): void
+  /** Chữ tooltip của một chấm (đã dịch). */
+  dotTip(t: TrailSummary): string
+  texts: ReliefMapTexts
 }
 
 const SRC = 'st-trails'
@@ -28,11 +32,13 @@ export class ExploreMap {
   #fitted = false
   /** Cung đang có tooltip trên canvas — null: không có gì. */
   #tipId: string | null = null
+  #dotTip: (t: TrailSummary) => string
 
   constructor(container: HTMLElement, dark: boolean, h: ExploreMapHandlers) {
+    this.#dotTip = h.dotTip
     this.#rm = new ReliefMap(
       container,
-      { dark, logTag: 'explore', mapOptions: { attributionControl: { compact: true }, dragRotate: false, pitchWithRotate: false, touchPitch: false } },
+      { dark, logTag: 'explore', texts: h.texts, mapOptions: { attributionControl: { compact: true }, dragRotate: false, pitchWithRotate: false, touchPitch: false } },
       { onStyle: (m) => this.#install(m), onFatal: h.onFatal },
     )
     this.#map = this.#rm.map
@@ -67,7 +73,7 @@ export class ExploreMap {
     const box = this.#map.getCanvas().getBoundingClientRect()
     const s = this.#map.project([t.lng, t.lat])
     // Chỉ nhớ "đang giải thích" khi tooltip nhận lời (con trỏ là chuột).
-    if (showTipAt(box.left + s.x, box.top + s.y, `${t.name}${t.region ? ` · ${t.region}` : ''} — bấm để xem nhanh`)) this.#tipId = t.id
+    if (showTipAt(box.left + s.x, box.top + s.y, this.#dotTip(t))) this.#tipId = t.id
   }
 
   #clearTip(): void {

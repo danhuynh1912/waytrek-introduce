@@ -4,6 +4,10 @@ import { JoinPage } from './components/JoinPage'
 import { inviteCodeFromPath, isInvitePath } from './lib/invite'
 import { PlannerAppLazy } from './plan/lazy'
 import { isPlanPath } from './plan/ui/route'
+import { I18nProvider } from './i18n/provider'
+import { applyDocumentLocale } from './i18n/document'
+import { splitLocale } from './i18n/locales'
+import { loadMessages } from './i18n/load'
 import { installTooltips } from './shared/tooltip'
 import SiteApp from './site/SiteApp'
 import './styles.css'
@@ -17,16 +21,39 @@ const isPlan = isPlanPath(path)
 // Tooltip khi rê chuột lên nút / điểm bản đồ — một lần cho mọi trang.
 installTooltips()
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    {isPlan ? (
-      <Suspense fallback={null}>
-        <PlannerAppLazy />
-      </Suspense>
-    ) : isInvitePath(path) ? (
-      <JoinPage code={inviteCodeFromPath(path)} />
-    ) : (
-      <SiteApp />
-    )}
-  </StrictMode>,
-)
+const root = createRoot(document.getElementById('root')!)
+
+async function start(): Promise<void> {
+  if (isPlan) {
+    root.render(
+      <StrictMode>
+        <Suspense fallback={null}>
+          <PlannerAppLazy />
+        </Suspense>
+      </StrictMode>,
+    )
+    return
+  }
+  if (isInvitePath(path)) {
+    root.render(
+      <StrictMode>
+        <JoinPage code={inviteCodeFromPath(path)} />
+      </StrictMode>,
+    )
+    return
+  }
+  // waytrek.site: ngôn ngữ do tiền tố đường dẫn quyết (`/ja/map`); câu chữ nạp
+  // TRƯỚC khi dựng để người dùng không thấy tiếng Việt nháy lên rồi mới đổi.
+  const { locale } = splitLocale(path)
+  const messages = await loadMessages(locale)
+  applyDocumentLocale(locale)
+  root.render(
+    <StrictMode>
+      <I18nProvider locale={locale} messages={messages}>
+        <SiteApp />
+      </I18nProvider>
+    </StrictMode>,
+  )
+}
+
+void start()

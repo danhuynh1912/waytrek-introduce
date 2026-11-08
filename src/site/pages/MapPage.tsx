@@ -5,7 +5,8 @@
 
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { count } from '@/shared/format'
+import { useI18n } from '../../i18n/context'
+import { fill } from '../../i18n/text'
 import { sitePath } from '../core/routes'
 import type { DifficultyBoard } from '../core/difficulty'
 import { sizedImage } from '../core/images'
@@ -15,24 +16,15 @@ import { navigate } from '../router'
 import { Link } from '../ui/Link'
 import { ExploreMap } from '../ui/map/explore-map'
 import { usePageMeta } from '../ui/page-meta'
-import { MetaLine } from '../ui/TrailCard'
+import { MetaLine } from '../ui/MetaLine'
 import { useCatalog, useDifficultyBoard } from '../ui/use-catalog'
 
-const SORTS: { value: TrailSort; label: string }[] = [
-  { value: 'popular', label: 'Nhiều lượt ghi danh' },
-  { value: 'hardest', label: 'Khó nhất' },
-  { value: 'easiest', label: 'Dễ nhất' },
-  { value: 'high', label: 'Đỉnh cao nhất' },
-  { value: 'short', label: 'Quãng đường ngắn' },
-  { value: 'name', label: 'Tên A → Z' },
-]
+const SORT_ORDER: TrailSort[] = ['popular', 'hardest', 'easiest', 'high', 'short', 'name']
 
 export default function MapPage({ selected, dark }: { selected: string | null; dark: boolean }) {
-  usePageMeta({
-    title: 'Khám phá cung núi · WayTrek',
-    description: 'Bản đồ các cung núi Việt Nam trên WayTrek: quãng đường, độ cao, độ khó do người leo xếp hạng và số lượt lên đỉnh của từng cung.',
-    path: '/map',
-  })
+  const { m, fmt } = useI18n()
+  const x = m.explore
+  usePageMeta({ title: m.seo.map.title, description: m.seo.map.description, path: '/map' })
   const [catalog, retry] = useCatalog()
   const board = useDifficultyBoard()
   const [filter, setFilter] = useState<TrailFilter>(DEFAULT_FILTER)
@@ -50,13 +42,15 @@ export default function MapPage({ selected, dark }: { selected: string | null; d
   // Bản đồ dựng một lần; đổi theme thì tô lại style, không dựng lại.
   useEffect(() => {
     if (!mapEl.current) return
-    const m = new ExploreMap(mapEl.current, dark, {
+    const em = new ExploreMap(mapEl.current, dark, {
       onSelect: (id) => select(id),
       onFatal: setMapError,
+      dotTip: (t) => fill(x.dotTip, { name: `${t.name}${t.region ? ` · ${t.region}` : ''}` }),
+      texts: m.map,
     })
-    map.current = m
+    map.current = em
     return () => {
-      m.destroy()
+      em.destroy()
       map.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -69,39 +63,39 @@ export default function MapPage({ selected, dark }: { selected: string | null; d
 
   return (
     <div className="st-explore">
-      <aside className="st-explore-panel" aria-label="Danh sách cung núi">
+      <aside className="st-explore-panel" aria-label={x.listLabel}>
         <div className="st-explore-head">
-          <h1 className="st-explore-title">Khám phá cung núi</h1>
+          <h1 className="st-explore-title">{x.title}</h1>
           <label className="st-search">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m20 20-4.2-4.2" /></svg>
             <input
               type="search"
               value={filter.query}
-              placeholder="Tìm tên cung hoặc vùng"
-              aria-label="Tìm tên cung hoặc vùng"
+              placeholder={x.searchPlaceholder}
+              aria-label={x.searchPlaceholder}
               onChange={(e) => setFilter((f) => ({ ...f, query: e.target.value }))}
             />
           </label>
           <div className="st-explore-bar">
-            <span className="st-explore-count">{all ? `${count(shown.length)} cung` : ' '}</span>
+            <span className="st-explore-count">{all ? fill(x.count, { n: fmt.count(shown.length) }) : ' '}</span>
             <label className="st-sort">
-              <span className="sr-only">Xếp theo</span>
+              <span className="sr-only">{x.sortBy}</span>
               <select value={filter.sort} onChange={(e) => setFilter((f) => ({ ...f, sort: e.target.value as TrailSort }))}>
-                {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                {SORT_ORDER.map((v) => <option key={v} value={v}>{x.sorts[v]}</option>)}
               </select>
             </label>
           </div>
         </div>
         {catalog.status === 'error' ? (
           <p className="st-explore-note">
-            Chưa tải được danh sách cung. <button type="button" className="st-text-btn" onClick={retry} data-tip="Tải lại danh sách cung">Thử lại</button>
+            {x.loadError} <button type="button" className="st-text-btn" onClick={retry} data-tip={x.retryTip}>{m.common.retry}</button>
           </p>
         ) : catalog.status === 'loading' ? (
           <ul className="st-explore-list" aria-busy="true">
             {Array.from({ length: 6 }, (_, i) => <li key={i} className="st-row is-skeleton" aria-hidden="true"><span className="st-row-img" /><span className="st-row-text"><span /><span /></span></li>)}
           </ul>
         ) : shown.length === 0 ? (
-          <p className="st-explore-note">Không có cung nào khớp “{filter.query.trim() || 'bộ lọc này'}”. Bạn thử gõ tên ngắn hơn, hoặc tìm theo tỉnh.</p>
+          <p className="st-explore-note">{fill(x.noMatch, { query: filter.query.trim() || x.noMatchFilter })}</p>
         ) : (
           <ul className="st-explore-list">
             {shown.map((t) => (
@@ -126,6 +120,7 @@ function TrailRow({ t, board, active, onHover, onSelect }: {
   onHover(id: string | null): void
   onSelect(id: string): void
 }) {
+  const { m, fmt } = useI18n()
   const ref = useRef<HTMLLIElement>(null)
   // Chọn từ bản đồ thì dòng tương ứng cuộn vào khung, để hai bên khớp nhau.
   useEffect(() => {
@@ -133,13 +128,13 @@ function TrailRow({ t, board, active, onHover, onSelect }: {
   }, [active])
   return (
     <li ref={ref} className={`st-row${active ? ' is-active' : ''}`} onMouseEnter={() => onHover(t.id)} onMouseLeave={() => onHover(null)}>
-      <button type="button" className="st-row-link" aria-pressed={active} onClick={() => onSelect(t.id)} data-tip="Xem cung này trên bản đồ, kèm thẻ xem nhanh">
+      <button type="button" className="st-row-link" aria-pressed={active} onClick={() => onSelect(t.id)} data-tip={m.explore.rowTip}>
         <span className="st-row-img">{t.imageUrl && <RowImage url={t.imageUrl} />}</span>
         <span className="st-row-text">
           <b>{t.name}</b>
           {t.region && <span className="st-row-region">{t.region}</span>}
           <MetaLine t={t} board={board} className="st-row-meta" />
-          {t.conquests > 0 && <span className="st-row-meta is-faint">{count(t.conquests)} lượt ghi danh</span>}
+          {t.conquests > 0 && <span className="st-row-meta is-faint">{fill(m.explore.conquests, { n: fmt.count(t.conquests) })}</span>}
         </span>
       </button>
     </li>
@@ -168,9 +163,10 @@ function PreviewImage({ url }: { url: string }) {
 }
 
 function Preview({ t, board, onClose }: { t: TrailSummary; board: DifficultyBoard | null; onClose(): void }) {
+  const { m } = useI18n()
   return (
     <div className={`st-preview${t.imageUrl ? ' has-img' : ''}`} key={t.id}>
-      <button type="button" className="st-preview-close" onClick={onClose} aria-label="Đóng thẻ xem trước" data-tip="Đóng thẻ xem trước">
+      <button type="button" className="st-preview-close" onClick={onClose} aria-label={m.explore.closePreview} data-tip={m.explore.closePreview}>
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
       </button>
       {t.imageUrl && <PreviewImage url={t.imageUrl} />}
@@ -178,8 +174,8 @@ function Preview({ t, board, onClose }: { t: TrailSummary; board: DifficultyBoar
         <p className="st-preview-name">{t.name}</p>
         {t.region && <p className="st-preview-region">{t.region}</p>}
         <p className="st-preview-meta"><MetaLine t={t} board={board} /></p>
-        <Link to={sitePath({ page: 'trail', trailId: t.id, routeId: null })} className="st-btn st-btn-primary" data-tip="Mở trang của cung: lộ trình, độ cao, độ khó">
-          Xem cung
+        <Link to={sitePath({ page: 'trail', trailId: t.id, routeId: null })} className="st-btn st-btn-primary" data-tip={m.explore.viewTrailTip}>
+          {m.explore.viewTrail}
         </Link>
       </div>
     </div>

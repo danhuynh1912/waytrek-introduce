@@ -96,8 +96,8 @@ export interface PlanMapHandlers {
 
 // Màu vẽ TRÊN bản đồ đi theo NỀN BẢN ĐỒ (Sáng: Liberty + nền xanh; Tối: bản
 // tối của ui-lab) chứ không theo token giao diện — cùng luật "nhìn thứ phía
-// sau" của app. Bản tối đổi nét kế hoạch sang teal sáng và viền tối, nếu không
-// nét teal sẫm chìm hẳn vào nền gần đen.
+// sau" của app. Bản tối đổi nét kế hoạch sang lime và viền tối, nếu không
+// nét rêu sẫm chìm hẳn vào nền gần đen.
 /** Màu riêng của trang lên kế hoạch, cộng thêm vào bảng màu chung `MAP_INK`. */
 interface Palette extends MapInk {
   straight: string

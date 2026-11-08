@@ -1,6 +1,10 @@
 import type { CSSProperties } from 'react'
 
-/** Ảnh chụp màn thật của app (public/screens, 828×1800) trong một khung máy mảnh. */
+/**
+ * Ảnh chụp màn thật của app (public/screens, 780 px ngang) trong khung máy viền
+ * kim loại tối như bản vẽ trang chủ. Bề ngang do CSS của nơi đặt quyết qua
+ * `--pw`; viền, bo góc co theo đó.
+ */
 export function Phone({ src, alt, className, style, eager = false }: {
   src: string
   alt: string
@@ -11,7 +15,7 @@ export function Phone({ src, alt, className, style, eager = false }: {
 }) {
   return (
     <figure className={`st-phone${className ? ` ${className}` : ''}`} style={style}>
-      <img src={src} alt={alt} width={828} height={1800} loading={eager ? 'eager' : 'lazy'} decoding="async" />
+      <img src={src} alt={alt} width={780} height={1688} loading={eager ? 'eager' : 'lazy'} decoding="async" />
     </figure>
   )
 }

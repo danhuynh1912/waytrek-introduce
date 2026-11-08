@@ -24,6 +24,17 @@ const placeholder = (dark: boolean): StyleSpecification => ({
   layers: [{ id: 'wt-placeholder', type: 'background', paint: { 'background-color': dark ? '#0B0C0B' : '#F0F5F7' } }],
 })
 
+/** Chữ bản đồ tự hiện ra (không đi qua React): câu lỗi và dòng ghi công của lớp độ cao. */
+export interface ReliefMapTexts {
+  fatal: string
+  elevation: string
+}
+
+const VI_TEXTS: ReliefMapTexts = {
+  fatal: 'Không tải được bản đồ. Kiểm tra mạng rồi tải lại trang.',
+  elevation: 'Độ cao: Terrain Tiles',
+}
+
 export interface ReliefMapHooks {
   /** Style thật vừa nạp xong (lần đầu hoặc sau đổi theme): cài lại lớp của trang. */
   onStyle(map: maplibregl.Map, first: boolean): void
@@ -37,6 +48,7 @@ export class ReliefMap {
   readonly map: maplibregl.Map
   #hooks: ReliefMapHooks
   #logTag: string
+  #texts: ReliefMapTexts
   #dark: boolean
   #base: StyleJson | null = null
   #realStyle = false
@@ -46,11 +58,12 @@ export class ReliefMap {
 
   constructor(
     container: HTMLElement,
-    opts: { dark: boolean; logTag: string; mapOptions?: Partial<MapOptions> },
+    opts: { dark: boolean; logTag: string; mapOptions?: Partial<MapOptions>; texts?: ReliefMapTexts },
     hooks: ReliefMapHooks,
   ) {
     this.#hooks = hooks
     this.#logTag = opts.logTag
+    this.#texts = opts.texts ?? VI_TEXTS
     this.#dark = opts.dark
     this.map = new maplibregl.Map({
       container,
@@ -60,7 +73,7 @@ export class ReliefMap {
       ...opts.mapOptions,
     })
     this.#loadTimer = setTimeout(() => {
-      if (!this.#ready) hooks.onFatal('Không tải được bản đồ. Kiểm tra mạng rồi tải lại trang.')
+      if (!this.#ready) hooks.onFatal(this.#texts.fatal)
     }, LOAD_TIMEOUT_MS)
     // 'style.load', không phải 'load': 'load' chờ MỌI ô đầu tiên tải xong (ô độ
     // cao có lúc 5 giây), lớp của trang không được phải chờ theo.
@@ -106,7 +119,7 @@ export class ReliefMap {
     if (this.#removed || !this.#base) return
     this.#realStyle = true
     this.#ready = false
-    this.map.setStyle(reliefStyle(this.#base, { demTiles: DEM_TILES_URL, dark: this.#dark }) as unknown as StyleSpecification, {
+    this.map.setStyle(reliefStyle(this.#base, { demTiles: DEM_TILES_URL, dark: this.#dark, attribution: this.#texts.elevation }) as unknown as StyleSpecification, {
       diff: false,
     })
   }

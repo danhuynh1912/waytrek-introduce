@@ -1,6 +1,6 @@
 // Màu nét / nhãn vẽ ĐÈ lên bản đồ theo theme — dùng chung cho trang lên kế
 // hoạch và các trang xem cung, để một cung trông giống nhau ở mọi trang.
-// Màu lộ trình chép theo app; `vehicle` là màu chặng đi xe của app (#E8821E).
+// Màu lộ trình là màu nhấn của app (lime trên nền tối, xanh rêu sẫm trên nền sáng); `vehicle` là màu chặng đi xe của app (#E8821E).
 
 export interface MapInk {
   route: string
@@ -17,7 +17,7 @@ export interface MapInk {
 
 export const MAP_INK: Record<'light' | 'dark', MapInk> = {
   light: {
-    route: '#2F677A',
+    route: '#4A6E00',
     casing: '#FFFFFF',
     vehicle: '#E8821E',
     peak: '#12222B',
@@ -29,7 +29,7 @@ export const MAP_INK: Record<'light' | 'dark', MapInk> = {
     water: '#2B7BB9',
   },
   dark: {
-    route: '#7FBDD0',
+    route: '#BDFE2E',
     casing: '#050605',
     vehicle: '#E8821E',
     peak: '#E6E8E3',

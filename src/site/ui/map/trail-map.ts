@@ -5,7 +5,11 @@ import type { GeoJSONSource, Map as MlMap } from 'maplibre-gl'
 import type { Feature, FeatureCollection } from 'geojson'
 import { LABEL_FONT, MAP_INK } from '@/shared/map/ink'
 import { ReliefMap } from '@/shared/map/relief-map'
+import type { ReliefMapTexts } from '@/shared/map/relief-map'
 import type { DrawLine } from '../../core/geometry'
+
+/** Chữ bản đồ tự hiện ra: câu lỗi, dòng ghi công, và ba câu hướng dẫn cử chỉ (bản đồ nằm giữa trang cuộn). */
+export type MapTexts = ReliefMapTexts & { ctrlScroll: string; cmdScroll: string; twoFingers: string }
 
 export interface MapPoint {
   id: string
@@ -27,12 +31,13 @@ export class TrailMap {
   #cursor: { lat: number; lng: number } | null = null
   #bbox: [number, number, number, number] | null = null
 
-  constructor(container: HTMLElement, dark: boolean, onFatal: (message: string) => void) {
+  constructor(container: HTMLElement, dark: boolean, onFatal: (message: string) => void, texts: MapTexts) {
     this.#rm = new ReliefMap(
       container,
       {
         dark,
         logTag: 'trail',
+        texts,
         mapOptions: {
           attributionControl: { compact: true },
           dragRotate: false,
@@ -41,9 +46,9 @@ export class TrailMap {
           // Bản đồ nằm giữa một trang cuộn: cuộn trang không được bị bản đồ "nuốt".
           cooperativeGestures: true,
           locale: {
-            'CooperativeGesturesHandler.WindowsHelpText': 'Giữ Ctrl rồi cuộn để phóng to bản đồ',
-            'CooperativeGesturesHandler.MacHelpText': 'Giữ ⌘ rồi cuộn để phóng to bản đồ',
-            'CooperativeGesturesHandler.MobileHelpText': 'Dùng hai ngón tay để di chuyển bản đồ',
+            'CooperativeGesturesHandler.WindowsHelpText': texts.ctrlScroll,
+            'CooperativeGesturesHandler.MacHelpText': texts.cmdScroll,
+            'CooperativeGesturesHandler.MobileHelpText': texts.twoFingers,
           },
         },
       },

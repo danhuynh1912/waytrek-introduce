@@ -5,7 +5,8 @@
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { count, distance, meters } from '@/shared/format'
+import { useI18n } from '../../i18n/context'
+import { fill } from '../../i18n/text'
 import { detectPlatform } from '@/shared/platform'
 import { formatDifficultyScore } from '../core/difficulty'
 import { bboxOf, profileOf, scaleProfile, segmentsOf, splitByTravel } from '../core/geometry'
@@ -24,14 +25,15 @@ import { usePageMeta } from '../ui/page-meta'
 import { useRouteGeometry, useTrailDetail } from '../ui/use-trail'
 
 export default function TrailPage({ trailId, routeId, dark }: { trailId: string; routeId: string | null; dark: boolean }) {
+  const { m } = useI18n()
   const [detail, retry] = useTrailDetail(trailId)
-  if (detail.status === 'loading') return <div className="st-page-loading" aria-label="Đang tải cung" />
+  if (detail.status === 'loading') return <div className="st-page-loading" aria-label={m.trail.loading} />
   if (detail.status === 'error') {
     return (
       <div className="st-wrap st-empty">
         <p className="st-body">
-          Chưa tải được thông tin cung này.{' '}
-          <button type="button" className="st-text-btn" onClick={retry} data-tip="Tải lại thông tin cung">Thử lại</button>
+          {m.trail.loadError}{' '}
+          <button type="button" className="st-text-btn" onClick={retry} data-tip={m.trail.retryTip}>{m.common.retry}</button>
         </p>
       </div>
     )
@@ -41,32 +43,41 @@ export default function TrailPage({ trailId, routeId, dark }: { trailId: string;
 }
 
 function TrailGone() {
-  usePageMeta({ title: 'Không tìm thấy cung · WayTrek', path: window.location.pathname, noindex: true })
+  const { m } = useI18n()
+  usePageMeta({ title: m.seo.trailGoneTitle, path: '/', noindex: true })
   return (
     <div className="st-wrap st-empty">
-      <h1 className="st-h2 st-h2-plain">Cung này không còn trên bản đồ công khai</h1>
-      <p className="st-body">Có thể cung đã được gộp vào một cung khác, hoặc đang chờ đội ngũ WayTrek thẩm định lại.</p>
+      <h1 className="st-h2 st-h2-plain">{m.trail.goneTitle}</h1>
+      <p className="st-body">{m.trail.goneText}</p>
       <div className="st-cta-row">
-        <Link to="/map" className="st-btn st-btn-primary" data-tip="Mở bản đồ mọi cung núi đang công khai">Xem các cung khác</Link>
+        <Link to="/map" className="st-btn st-btn-primary" data-tip={m.trail.goneTip}>{m.trail.goneButton}</Link>
       </div>
     </div>
   )
 }
 
 function TrailView({ d, routeId, dark }: { d: TrailDetail; routeId: string | null; dark: boolean }) {
+  const { m, fmt } = useI18n()
+  const x = m.trail
+  const { count, distance, meters } = fmt
   const t = d.trail
   const route: RouteMeta | null = d.routes.find((r) => r.id === routeId) ?? d.routes[0] ?? null
-  const label = difficultyLabel(t)
+  const label = difficultyLabel(t, m.difficulty)
   const board = useDifficultyBoard()
   const score = board?.byTrail.get(t.id)
+  // Mô tả cho máy tìm kiếm: "Tên (vùng): số đo: điểm / độ khó" — mảnh nối và dấu câu theo từng ngôn ngữ.
+  const facts = [
+    t.distanceM != null ? distance(t.distanceM) : null,
+    t.gainM != null ? fill(m.seo.factGain, { value: meters(t.gainM) }) : null,
+    t.peakEleM != null ? fill(m.seo.factPeak, { value: meters(t.peakEleM) }) : null,
+  ].filter(Boolean).join(m.seo.sep)
   usePageMeta({
-    title: `${t.name} · WayTrek`,
+    title: fill(m.seo.trailTitle, { name: t.name }),
     description: [
-      `${t.name}${t.region ? ` (${t.region})` : ''}`,
-      [t.distanceM != null ? distance(t.distanceM) : null, t.gainM != null ? `leo ${meters(t.gainM)}` : null, t.peakEleM != null ? `đỉnh ${meters(t.peakEleM)}` : null]
-        .filter(Boolean).join(', '),
-      score ? `điểm độ khó ${formatDifficultyScore(score.score)} do người leo xếp hạng trên WayTrek.` : `độ khó ${label.toLowerCase()} do người leo xếp hạng trên WayTrek.`,
-    ].filter(Boolean).join(': '),
+      t.region ? fill(m.seo.nameRegion, { name: t.name, region: t.region }) : t.name,
+      facts,
+      score ? fill(m.seo.scoreTail, { score: formatDifficultyScore(score.score, fmt) }) : fill(m.seo.labelTail, { label: label.toLowerCase() }),
+    ].filter(Boolean).join(m.seo.colon),
     path: sitePath({ page: 'trail', trailId: t.id, routeId: null }),
   })
 
@@ -86,10 +97,10 @@ function TrailView({ d, routeId, dark }: { d: TrailDetail; routeId: string | nul
   const [mapError, setMapError] = useState<string | null>(null)
   useEffect(() => {
     if (!mapEl.current) return
-    const m = new TrailMap(mapEl.current, dark, setMapError)
-    map.current = m
+    const tm = new TrailMap(mapEl.current, dark, setMapError, m.map)
+    map.current = tm
     return () => {
-      m.destroy()
+      tm.destroy()
       map.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -111,13 +122,13 @@ function TrailView({ d, routeId, dark }: { d: TrailDetail; routeId: string | nul
   return (
     <article className="st-trail">
       <div className="st-wrap st-crumbs">
-        <Link to="/map">Khám phá</Link>
+        <Link to="/map">{x.crumbExplore}</Link>
         <span aria-hidden="true">/</span>
         <span>{t.name}</span>
       </div>
       {t.imageUrl && (
         <div className="st-wrap">
-          <TrailHero url={t.imageUrl} name={t.name} />
+          <TrailHero url={t.imageUrl} alt={fill(x.heroAlt, { name: t.name })} />
         </div>
       )}
       <header className="st-wrap st-trail-head">
@@ -126,27 +137,27 @@ function TrailView({ d, routeId, dark }: { d: TrailDetail; routeId: string | nul
           {t.region && <p className="st-trail-region">{t.region}</p>}
         </div>
         <div className="st-trail-actions">
-          <a className="st-btn st-btn-primary" href="/plan/new" data-tip="Chọn điểm, tính giờ từng chặng trên địa hình thật">
-            Lên kế hoạch chuyến đi
+          <a className="st-btn st-btn-primary" href="/plan/new" data-tip={x.planTip}>
+            {x.plan}
           </a>
           {onMobile && (
             <a
               className="st-btn st-btn-quiet"
               href={appLink({ page: 'trail', trailId: t.id, routeId: route?.id ?? null })}
-              data-tip="Mở đúng cung này trong app WayTrek"
+              data-tip={x.openAppTip}
             >
-              Mở trong WayTrek
+              {x.openApp}
             </a>
           )}
         </div>
       </header>
       <div className="st-wrap">
         <dl className="st-facts">
-          <Fact label="Điểm độ khó" value={<DifficultyScore t={t} board={board} />} />
-          <Fact label="Quãng đường" value={route?.distanceM != null ? distance(route.distanceM) : t.distanceM != null ? distance(t.distanceM) : null} />
-          <Fact label="Leo" value={route?.gainM != null ? meters(route.gainM) : t.gainM != null ? meters(t.gainM) : null} />
-          <Fact label="Độ cao đỉnh" value={t.peakEleM != null ? meters(t.peakEleM) : null} />
-          <Fact label="Lượt ghi danh" value={count(t.conquests)} />
+          <Fact label={x.factScore} value={<DifficultyScore t={t} board={board} />} />
+          <Fact label={x.factDistance} value={route?.distanceM != null ? distance(route.distanceM) : t.distanceM != null ? distance(t.distanceM) : null} />
+          <Fact label={x.factGain} value={route?.gainM != null ? meters(route.gainM) : t.gainM != null ? meters(t.gainM) : null} />
+          <Fact label={x.factPeak} value={t.peakEleM != null ? meters(t.peakEleM) : null} />
+          <Fact label={x.factConquests} value={count(t.conquests)} />
         </dl>
       </div>
 
@@ -154,16 +165,16 @@ function TrailView({ d, routeId, dark }: { d: TrailDetail; routeId: string | nul
         <div className="st-trail-main">
           {t.description && (
             <section className="st-trail-sec">
-              <h2>Giới thiệu</h2>
+              <h2>{x.about}</h2>
               {t.description.split(/\n+/).map((p, i) => <p key={i} className="st-body">{p}</p>)}
             </section>
           )}
           <section className="st-trail-sec">
-            <h2>Lộ trình <span className="st-sec-count">{d.routes.length}</span></h2>
+            <h2>{x.routes} <span className="st-sec-count">{d.routes.length}</span></h2>
             {d.routes.length === 0 ? (
-              <p className="st-body">Cung này chưa có lộ trình công khai nào.</p>
+              <p className="st-body">{x.noRoutes}</p>
             ) : (
-              <ul className="st-routes" role="listbox" aria-label="Chọn lộ trình">
+              <ul className="st-routes" role="listbox" aria-label={x.routesLabel}>
                 {d.routes.map((r) => {
                   const on = r.id === route?.id
                   return (
@@ -174,11 +185,11 @@ function TrailView({ d, routeId, dark }: { d: TrailDetail; routeId: string | nul
                         aria-selected={on}
                         className={`st-route${on ? ' is-on' : ''}`}
                         onClick={() => pickRoute(r)}
-                        data-tip={on ? 'Lộ trình đang hiện trên bản đồ' : 'Xem lộ trình này trên bản đồ và biểu đồ độ cao'}
+                        data-tip={on ? x.routeOnTip : x.routePickTip}
                       >
                         <span className="st-route-name">
                           {r.name}
-                          {r.isRecommended && <em>Gợi ý</em>}
+                          {r.isRecommended && <em>{x.recommended}</em>}
                         </span>
                         <span className="st-route-meta">
                           {[r.distanceM != null ? distance(r.distanceM) : null, r.gainM != null ? `↑${meters(r.gainM)}` : null].filter(Boolean).join(' · ')}
@@ -192,14 +203,14 @@ function TrailView({ d, routeId, dark }: { d: TrailDetail; routeId: string | nul
           </section>
           {d.poiGroups.length > 0 && (
             <section className="st-trail-sec">
-              <h2>Điểm đánh dấu <span className="st-sec-count">{pois.length}</span></h2>
+              <h2>{x.pois} <span className="st-sec-count">{pois.length}</span></h2>
               {d.poiGroups.map((g) => (
                 <div key={g.id} className="st-poi-group">
                   <h3>{g.name}</h3>
                   <ul>
                     {g.points.map((p) => (
                       <li key={p.id}>
-                        <button type="button" className="st-poi" onClick={() => map.current?.focus({ lat: p.lat, lng: p.lng })} data-tip="Đưa bản đồ tới điểm này">
+                        <button type="button" className="st-poi" onClick={() => map.current?.focus({ lat: p.lat, lng: p.lng })} data-tip={x.poiTip}>
                           <b>{p.name}</b>
                           {p.description && <span>{p.description}</span>}
                         </button>
@@ -212,7 +223,7 @@ function TrailView({ d, routeId, dark }: { d: TrailDetail; routeId: string | nul
           )}
           {d.lore.length > 0 && (
             <section className="st-trail-sec">
-              <h2>Truyện núi</h2>
+              <h2>{x.lore}</h2>
               {d.lore.map((c) => (
                 <div key={c.no} className="st-lore">
                   {c.title && <h3>{c.title}</h3>}
@@ -222,17 +233,17 @@ function TrailView({ d, routeId, dark }: { d: TrailDetail; routeId: string | nul
             </section>
           )}
         </div>
-        <aside className="st-trail-side" aria-label="Bản đồ lộ trình">
+        <aside className="st-trail-side" aria-label={x.mapLabel}>
           <div className="st-trail-map">
             <div className="st-trail-canvas" ref={mapEl} />
             {mapError && <p className="st-map-error" role="alert">{mapError}</p>}
-            {geo?.status === 'error' && <p className="st-map-error" role="alert">Chưa tải được đường đi của lộ trình này.</p>}
-            <button type="button" className="st-map-fit" onClick={() => map.current?.fitRoute()} aria-label="Xem trọn lộ trình" data-tip="Ôm trọn lộ trình vào khung bản đồ">
+            {geo?.status === 'error' && <p className="st-map-error" role="alert">{x.routeError}</p>}
+            <button type="button" className="st-map-fit" onClick={() => map.current?.fitRoute()} aria-label={x.fit} data-tip={x.fitTip}>
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
             </button>
           </div>
           {hasVehicle && (
-            <p className="st-legend"><i className="is-walk" /> Đi bộ <i className="is-vehicle" /> Đi xe</p>
+            <p className="st-legend"><i className="is-walk" /> {x.legendWalk} <i className="is-vehicle" /> {x.legendVehicle}</p>
           )}
           {profile && <ElevationChart key={route?.id} profile={profile} onHover={onProfileHover} />}
         </aside>
@@ -245,13 +256,13 @@ function TrailView({ d, routeId, dark }: { d: TrailDetail; routeId: string | nul
  * Ảnh đầu trang cung: máy tính 21:9 bị chặn cao 460 px trên bề ngang 1180 px,
  * điện thoại 4:3 (CSS ≤ 640 px) — hai khung khác tỉ lệ nên hai bản cắt.
  */
-function TrailHero({ url, name }: { url: string; name: string }) {
+function TrailHero({ url, alt }: { url: string; alt: string }) {
   const wide = sizedImage(url, 1180, 460, 75)
   const phone = sizedImage(url, 360, 270, 75)
   return (
     <picture>
       {phone.srcSet && <source media="(max-width: 640px)" srcSet={phone.srcSet} />}
-      <img className="st-trail-hero" src={wide.src} srcSet={wide.srcSet} alt={`Phong cảnh ${name}`} />
+      <img className="st-trail-hero" src={wide.src} srcSet={wide.srcSet} alt={alt} />
     </picture>
   )
 }

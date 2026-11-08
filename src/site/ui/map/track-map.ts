@@ -161,7 +161,7 @@ export class TrackMap {
       paint: { 'text-color': C.label, 'text-halo-color': C.halo, 'text-halo-width': 1.4 },
     })
     // Vị trí người leo: chấm xanh dương có quầng — màu "bạn ở đây" quen thuộc,
-    // khác hẳn nét lộ trình (teal) và chặng xe (cam). Không nhấp nháy (luật
+    // khác hẳn nét lộ trình (màu nhấn) và chặng xe (cam). Không nhấp nháy (luật
     // thiết kế).
     m.addLayer({
       id: 'tk-here-halo',

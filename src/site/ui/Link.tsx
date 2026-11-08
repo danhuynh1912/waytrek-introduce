@@ -1,11 +1,15 @@
 import type { AnchorHTMLAttributes, MouseEvent } from 'react'
+import { useI18n } from '../../i18n/context'
+import { localizedPath } from '../../i18n/locales'
 import { isSitePath, navigate } from '../router'
 
 /**
  * `<a>` thật (chuột giữa, Cmd+click, chép link đều chạy), chỉ chặn cú bấm
- * trái thường khi đích nằm trong trang này.
+ * trái thường khi đích nằm trong trang này. `to` là đường dẫn KHÔNG tiền tố;
+ * `href` thêm tiền tố ngôn ngữ đang xem (link chép đi vẫn đúng ngôn ngữ).
  */
 export function Link({ to, onClick, ...rest }: { to: string } & AnchorHTMLAttributes<HTMLAnchorElement>) {
+  const { locale } = useI18n()
   const handle = (e: MouseEvent<HTMLAnchorElement>) => {
     onClick?.(e)
     if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
@@ -15,5 +19,5 @@ export function Link({ to, onClick, ...rest }: { to: string } & AnchorHTMLAttrib
     navigate(to)
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
   }
-  return <a href={to} onClick={handle} {...rest} />
+  return <a href={isSitePath(to) ? localizedPath(locale, to) : to} onClick={handle} {...rest} />
 }
