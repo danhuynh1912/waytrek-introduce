@@ -15,6 +15,6 @@ export const PLAY_URL = `https://play.google.com/store/apps/details?id=${ANDROID
 export const storeUrlFor = (locale: Locale): string => STORE_URL.replace('/vn/', `/${LOCALE_INFO[locale].storefront}/`)
 export const playUrlFor = (locale: Locale): string => `${PLAY_URL}&hl=${LOCALE_INFO[locale].playLang}`
 // Trang pháp lý nằm ở admin web (Apple giữ đúng URL này làm Privacy Policy URL).
-export const PRIVACY_URL = 'https://admin-waytrek.vercel.app/privacy'
-export const TERMS_URL = 'https://admin-waytrek.vercel.app/terms'
-export const DELETE_ACCOUNT_URL = 'https://admin-waytrek.vercel.app/delete-account'
+export const PRIVACY_URL = 'https://admin.waytrek.site/privacy'
+export const TERMS_URL = 'https://admin.waytrek.site/terms'
+export const DELETE_ACCOUNT_URL = 'https://admin.waytrek.site/delete-account'
